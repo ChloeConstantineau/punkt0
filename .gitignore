@@ -1,0 +1,12 @@
+/bin/
+  
+  .cache-main
+ +
+ +#Eclipse files:
+  .classpath
+  .project
+  .settings/
+ +
+ +#More Eclipse files:
+ +.metadata/
+ +compiler-labs-chloec-leaeh/.metadata
