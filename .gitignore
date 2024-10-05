@@ -1,12 +1,25 @@
-/bin/
-  
-  .cache-main
- +
- +#Eclipse files:
-  .classpath
-  .project
-  .settings/
- +
- +#More Eclipse files:
- +.metadata/
- +compiler-labs-chloec-leaeh/.metadata
+# sbt
+lib_managed
+project/project
+target/*
+.bsp
+
+# Worksheets
+*.sc
+
+# Editors
+.idea
+.vscode
+.metals
+
+# Mac
+.DS_Store
+
+# Log files
+*.log
+
+# jenv
+.java-version
+.bloop
+.scannerwork
+
