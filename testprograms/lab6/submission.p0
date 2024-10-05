@@ -1,0 +1,26 @@
+// DESC                                                         EXPECTED    ACTUAL
+//xTODO: overriding methods                                     invalid     valid
+
+class A {
+ var a : Int = 5;
+ def a() : Unit = {
+   println("HEY")
+ }
+}
+class B extends A{
+  def b(a : Boolean, b : Int) : Unit = {
+    println("a")
+  }
+}
+
+class C extends B {
+  def afd(a : Boolean) : Unit = {
+    a = true;
+    println(a)
+  }
+}
+
+object Main extends App {
+  //var b: B = null;
+  println("Hello")
+}
