@@ -1,4 +1,4 @@
-package punkt0
+package io.punkt0
 
 abstract class Phase[-F, +T] {
   self =>

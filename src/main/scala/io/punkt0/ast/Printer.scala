@@ -1,5 +1,4 @@
-package punkt0
-package ast
+package io.punkt0.ast
 
 import Trees._
 
@@ -40,7 +39,9 @@ object Printer {
     def makeVars(vars: List[VarDecl]): Unit = {
       if (vars.length.>(0)) {
         for (i <- 0 until vars.length) {
-          AST.++=("\t var " + vars(i).id.value + " : " + getType(vars(i).tpe) + " = ")
+          AST.++=(
+            "\t var " + vars(i).id.value + " : " + getType(vars(i).tpe) + " = "
+          )
           getExpr(vars(i).expr)
           if (i != vars.length) {
             AST.+=(';')
@@ -231,7 +232,9 @@ object Printer {
     makeMain(t.main)
 
     def makeMain(main: MainDecl): Unit = {
-      AST.++=("object " + main.obj.value + "#" + main.getSymbol.id +" extends " + main.parent.value + "#" + main.parent.getSymbol.id + " {" + "\n")
+      AST.++=(
+        "object " + main.obj.value + "#" + main.getSymbol.id + " extends " + main.parent.value + "#" + main.parent.getSymbol.id + " {" + "\n"
+      )
       makeVars(main.vars)
       makeExprs(main.exprs)
       AST.++=("}" + "\n")
@@ -247,7 +250,9 @@ object Printer {
     def makeClass(aClass: ClassDecl): Unit = {
       AST.++=("Class " + aClass.id.value + "#" + aClass.getSymbol.id)
       if (aClass.parent.isDefined) {
-        AST.append(" extends " + aClass.parent.get.value + "#" + aClass.getSymbol.parent.get.id)
+        AST.append(
+          " extends " + aClass.parent.get.value + "#" + aClass.getSymbol.parent.get.id
+        )
       }
       AST.append(" {" + "\n")
       makeVars(aClass.vars)
@@ -259,7 +264,11 @@ object Printer {
     def makeVars(vars: List[VarDecl]): Unit = {
       if (vars.length.>(0)) {
         for (i <- 0 until vars.length) {
-          AST.++=("\tvar " + vars(i).id.value + "#" + vars(i).getSymbol.id + " : " + getType(vars(i).tpe) + " = ")
+          AST.++=(
+            "\tvar " + vars(i).id.value + "#" + vars(
+              i
+            ).getSymbol.id + " : " + getType(vars(i).tpe) + " = "
+          )
           getExpr(vars(i).expr)
           if (i != vars.length) {
             AST.+=(';')
@@ -295,10 +304,18 @@ object Printer {
       if (formals.length.>(0)) {
         for (i <- 0 until formals.length) {
           if (i != formals.length - 1) {
-            AST.append(formals(i).id.value + "#" + formals(i).getSymbol.id + " : " + getType(formals(i).tpe))
+            AST.append(
+              formals(i).id.value + "#" + formals(
+                i
+              ).getSymbol.id + " : " + getType(formals(i).tpe)
+            )
             AST.append(", ")
           } else
-            AST.append(formals(i).id.value + "#" + formals(i).getSymbol.id + " : " + getType(formals(i).tpe))
+            AST.append(
+              formals(i).id.value + "#" + formals(
+                i
+              ).getSymbol.id + " : " + getType(formals(i).tpe)
+            )
         }
       }
 
@@ -415,11 +432,12 @@ object Printer {
 
     def getExprInternal(expr: ExprTree): Unit = {
       expr match {
-        case True()         => AST.append("true")
-        case False()        => AST.append("false")
-        case Identifier(id) => AST.append(id + "#" + expr.asInstanceOf[Identifier].getSymbol.id)
-        case This()         => AST.append("this")
-        case Null()         => AST.append("null")
+        case True()  => AST.append("true")
+        case False() => AST.append("false")
+        case Identifier(id) =>
+          AST.append(id + "#" + expr.asInstanceOf[Identifier].getSymbol.id)
+        case This() => AST.append("this")
+        case Null() => AST.append("null")
         case New(id) => {
           AST.append("new ")
           getExprInternal(id)
@@ -446,7 +464,7 @@ object Printer {
 
     AST.toString
   }
-  
+
   //Use this apply to print types
 
   def applyTypes(t: Program): String = {
@@ -455,7 +473,9 @@ object Printer {
     makeMain(t.main)
 
     def makeMain(main: MainDecl): Unit = {
-      AST.++=("object " + main.obj.value + " " + main.getType +" extends " + main.parent.value + " " + main.parent.getType + " {" + "\n")
+      AST.++=(
+        "object " + main.obj.value + " " + main.getType + " extends " + main.parent.value + " " + main.parent.getType + " {" + "\n"
+      )
       makeVars(main.vars)
       makeExprs(main.exprs)
       AST.++=("}" + "\n")
@@ -471,7 +491,9 @@ object Printer {
     def makeClass(aClass: ClassDecl): Unit = {
       AST.++=("Class " + aClass.id.value + " " + aClass.getType)
       if (aClass.parent.isDefined) {
-        AST.append(" extends " + aClass.parent.get.value + " " + aClass.parent.get.getType)
+        AST.append(
+          " extends " + aClass.parent.get.value + " " + aClass.parent.get.getType
+        )
       }
       AST.append(" {" + "\n")
       makeVars(aClass.vars)
@@ -483,7 +505,11 @@ object Printer {
     def makeVars(vars: List[VarDecl]): Unit = {
       if (vars.length.>(0)) {
         for (i <- 0 until vars.length) {
-          AST.++=("\tvar " + vars(i).id.value + " " + vars(i).getType + " : " + getType(vars(i).tpe) + " = ")
+          AST.++=(
+            "\tvar " + vars(i).id.value + " " + vars(
+              i
+            ).getType + " : " + getType(vars(i).tpe) + " = "
+          )
           getExpr(vars(i).expr)
           if (i != vars.length) {
             AST.+=(';')
@@ -519,10 +545,18 @@ object Printer {
       if (formals.length.>(0)) {
         for (i <- 0 until formals.length) {
           if (i != formals.length - 1) {
-            AST.append(formals(i).id.value + " " + formals(i).getType + " : " + getType(formals(i).tpe))
+            AST.append(
+              formals(i).id.value + " " + formals(i).getType + " : " + getType(
+                formals(i).tpe
+              )
+            )
             AST.append(", ")
           } else
-            AST.append(formals(i).id.value + " " + formals(i).getType + " : " + getType(formals(i).tpe))
+            AST.append(
+              formals(i).id.value + " " + formals(i).getType + " : " + getType(
+                formals(i).tpe
+              )
+            )
         }
       }
 
@@ -560,10 +594,14 @@ object Printer {
         case If(expr, thn, elseExpr) => {
           AST.append("if(")
           getExpr(expr)
-          AST.append(")" + "CONDITION" + expr.getType + " IF" + e.getType + "\n\t\t")
+          AST.append(
+            ")" + "CONDITION" + expr.getType + " IF" + e.getType + "\n\t\t"
+          )
           getExpr(thn)
           if (elseExpr.isDefined) {
-            AST.append("\n\t" + "else " + "ELSE" + elseExpr.get.getType + "\n\t\t")
+            AST.append(
+              "\n\t" + "else " + "ELSE" + elseExpr.get.getType + "\n\t\t"
+            )
             getExpr(elseExpr.get)
           }
         }
@@ -662,9 +700,10 @@ object Printer {
           getExprInternal(id)
           AST.append("NEW" + expr.getType)
         }
-        case StringLit(aString) => AST.append("\"" + aString + "\"" + expr.getType)
-        case IntLit(int)        => AST.append(int + " " + expr.getType)
-        case _                  => println("ERROR")
+        case StringLit(aString) =>
+          AST.append("\"" + aString + "\"" + expr.getType)
+        case IntLit(int) => AST.append(int + " " + expr.getType)
+        case _           => println("ERROR")
       }
     }
 

@@ -1,7 +1,7 @@
-package punkt0
-package analyzer
+package io.punkt0.analyzer
 
-import analyzer.Types._
+import io.punkt0.Positioned
+import io.punkt0.analyzer.Types._
 
 object Symbols {
 
@@ -52,7 +52,6 @@ object Symbols {
       // Method exists in current class
       if (methods.contains(n))
         methods.get(n)
-
       else {
         lookupMethodInParentTree(n)
       }
@@ -78,7 +77,6 @@ object Symbols {
       // Var exists in current class
       if (members.contains(n))
         members.get(n)
-
       else {
         //Look for Var in parent tree
         var upperParent = parent
@@ -98,7 +96,11 @@ object Symbols {
     }
   }
 
-  class MethodSymbol(val name: String, val classSymbol: ClassSymbol, val tpe: Type) extends Symbol {
+  class MethodSymbol(
+      val name: String,
+      val classSymbol: ClassSymbol,
+      val tpe: Type
+  ) extends Symbol {
     var params = Map[String, VariableSymbol]()
     var members = Map[String, VariableSymbol]()
     var argTpeList: List[Type] = Nil

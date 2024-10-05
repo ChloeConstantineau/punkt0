@@ -1,7 +1,9 @@
 # sbt
 lib_managed
 project/project
+project/target
 target/*
+
 .bsp
 
 # Worksheets

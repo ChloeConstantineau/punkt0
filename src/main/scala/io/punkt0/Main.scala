@@ -1,4 +1,4 @@
-package punkt0
+package io.punkt0
 
 import java.io.File
 import lexer._
@@ -47,7 +47,7 @@ object Main {
     ctx
   }
 
-  def printTokens(it: Iterator[Token]) {
+  def printTokens(it: Iterator[Token]): Unit = {
     var tokenList = it.toList;
     for (i <- 0 until tokenList.length) {
       println(tokenList(i) + "(" + tokenList(i).posString + ")");
@@ -87,10 +87,10 @@ object Main {
     if (ctx.doAST || ctx.doTokens)
       sys.exit(0)
 
-  /*  //EVERYTHING
+    /*  //EVERYTHING
     val allPhases = Lexer andThen Parser andThen NameAnalysis andThen TypeChecking andThen CodeGeneration
     allPhases.run(ctx.file.get)(ctx)
-  */  
+     */
     val name = NameAnalysis.run(ast)(ctx)
     val typeCk = TypeChecking.run(name)(ctx)
     CodeGeneration.run(typeCk)(ctx)

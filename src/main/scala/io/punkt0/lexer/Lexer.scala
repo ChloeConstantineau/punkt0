@@ -1,10 +1,12 @@
-package punkt0
-package lexer
+package io.punkt0.lexer
+
+import io.punkt0.{Context, Phase}
+import io.punkt0.Reporter._
+import io.punkt0.Positioned
 
 import java.io.File
 
 object Lexer extends Phase[File, Iterator[Token]] {
-  import Reporter._ 
 
   val keywords = Map[String, TokenKind](
     "class" -> CLASS,
@@ -25,12 +27,14 @@ object Lexer extends Phase[File, Iterator[Token]] {
     "this" -> THIS,
     "null" -> NULL,
     "new" -> NEW,
-    "println" -> PRINTLN)
+    "println" -> PRINTLN
+  )
 
   // indicates end of input
   val EndOfFile: Char = java.lang.Character.MAX_VALUE
 
   def run(f: File)(ctx: Context): Iterator[Token] = {
+
     val source = scala.io.Source.fromFile(f)
 
     // the last char seen in the input stream
@@ -54,9 +58,11 @@ object Lexer extends Phase[File, Iterator[Token]] {
     def nextChar(): Unit = {
       if (currentChar == EndOfFile) return
 
-      currentChar  = readChar()
-      previousChar = if (previousChar == '\r' && currentChar == '\n') readChar() else currentChar
-      currentChar  = if (previousChar == '\r') '\n' else previousChar
+      currentChar = readChar()
+      previousChar =
+        if (previousChar == '\r' && currentChar == '\n') readChar()
+        else currentChar
+      currentChar = if (previousChar == '\r') '\n' else previousChar
     }
 
     /* removes comments and whitespace and reads next token */
@@ -74,7 +80,8 @@ object Lexer extends Phase[File, Iterator[Token]] {
             var atEnd = false
             while (!atEnd) {
               while (currentChar != '*') {
-                if (currentChar == EndOfFile) fatal("unclosed block comment", currentPos())
+                if (currentChar == EndOfFile)
+                  fatal("unclosed block comment", currentPos())
                 nextChar()
               }
               nextChar()

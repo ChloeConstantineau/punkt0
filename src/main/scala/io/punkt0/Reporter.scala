@@ -1,4 +1,4 @@
-package punkt0
+package io.punkt0
 
 import java.io.File
 import scala.io.Source
@@ -55,7 +55,7 @@ object Reporter {
   }
 }
 
-case class Message(m: String){
+case class Message(m: String) {
   def show() = { println(this.m) }
 }
 
@@ -69,5 +69,7 @@ object Message {
   val NESTEDCOMMENT = Message("Nested comments are not allowed")
   val STRLITEND = Message("String Lit never ending")
   val NULLTREE = Message("Tree is null, some arguments might have a null value")
-  val WRONGOPERATORASSOCIATION = Message("This operator cannot be right associative")
+  val WRONGOPERATORASSOCIATION = Message(
+    "This operator cannot be right associative"
+  )
 }

@@ -1,5 +1,4 @@
-package punkt0
-package analyzer
+package io.punkt0.analyzer
 
 import Symbols._
 import scala.collection.mutable.ListBuffer

@@ -1,4 +1,4 @@
-package punkt0
+package io.punkt0
 
 import java.io.File
 
@@ -27,7 +27,7 @@ trait Positioned {
   def getLine(): Int = {
     line
   }
-  
+
   def setPos(file: File, pos: Int): this.type = {
     info = Some((file, pos))
     this
@@ -39,7 +39,7 @@ trait Positioned {
   }
 
   def posString: String =
-    if (hasPos)/* file.getPath + ":" +*/ line + ":" + column
+    if (hasPos) /* file.getPath + ":" +*/ line + ":" + column
     else "?:?"
 }
 

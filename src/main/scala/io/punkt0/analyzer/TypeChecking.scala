@@ -1,40 +1,40 @@
-package punkt0
-package analyzer
+package io.punkt0.analyzer
 
-import ast.Trees._
-import Symbols._
-import Types._
+import io.punkt0.{Context, Phase}
+import io.punkt0.analyzer.Symbols._
+import io.punkt0.analyzer.Types._
+import io.punkt0.ast.Trees._
+
 import scala.collection.mutable.ListBuffer
 
 object TypeChecking extends Phase[Program, Program] {
 
-  /**
-   * Typechecking does not produce a value, but has the side effect of
-   * attaching types to trees and potentially outputting error messages.
-   */
-  
-  
+  /** Typechecking does not produce a value, but has the side effect of
+    * attaching types to trees and potentially outputting error messages.
+    */
+
   val primitiveTypes = List(TBoolean, TString, TInt)
   def run(prog: Program)(ctx: Context): Program = {
-    
-    def getType(tpe: TypeTree, classSymbol: Option[ClassSymbol]): Type = tpe match {
-      case BooleanType() => TBoolean
-      case StringType()  => TString
-      case IntType()     => TInt
-      case UnitType()    => TUnit
-      case Identifier(value) => {
-        if (classSymbol.isDefined)
-          TClass(classSymbol.get)
-        else {
-          val c = prog.classes.find(c => c.id.equals(tpe))
-          if (c.isDefined)
-            TClass(c.get.getSymbol)
-          else
-            TUntyped
+
+    def getType(tpe: TypeTree, classSymbol: Option[ClassSymbol]): Type =
+      tpe match {
+        case BooleanType() => TBoolean
+        case StringType()  => TString
+        case IntType()     => TInt
+        case UnitType()    => TUnit
+        case Identifier(value) => {
+          if (classSymbol.isDefined)
+            TClass(classSymbol.get)
+          else {
+            val c = prog.classes.find(c => c.id.equals(tpe))
+            if (c.isDefined)
+              TClass(c.get.getSymbol)
+            else
+              TUntyped
+          }
         }
+        case _ => TUntyped
       }
-      case _ => TUntyped
-    }
 
     def tcPlusOverload(e1: Type, e2: Type): Type = {
       e1 match {
@@ -42,31 +42,47 @@ object TypeChecking extends Phase[Program, Program] {
           e2 match {
             case TInt    => TInt
             case TString => TString
-            case any     => Reporter.fatal("Plus is not overloaded for type" + any)
+            case any =>
+              import io.punkt0.Reporter
+              Reporter.fatal("Plus is not overloaded for type" + any)
           }
         }
         case TString => {
           e2 match {
             case TInt    => TString
             case TString => TString
-            case any     => Reporter.fatal("Plus is not overloaded for type" + any)
+            case any =>
+              import io.punkt0.Reporter
+              Reporter.fatal("Plus is not overloaded for type" + any)
           }
         }
-        case any => Reporter.fatal("Plus is not overloaded for type" + any)
+        case any =>
+          import io.punkt0.Reporter
+          Reporter.fatal("Plus is not overloaded for type" + any)
       }
     }
 
     def tcComparisionOverload(e1: Type, e2: Type): Unit = {
+      import io.punkt0.Reporter
 
       //Primitive type compare
-      if (primitiveTypes.contains(e1) && primitiveTypes.contains(e2) && !e1.isSubTypeOf(e2))
+      if (
+        primitiveTypes.contains(e1) && primitiveTypes.contains(e2) && !e1
+          .isSubTypeOf(e2)
+      )
         Reporter.fatal("Cannot compare two different primitive types")
-
-      else if ((primitiveTypes.contains(e1) && !primitiveTypes.contains(e2)) || (primitiveTypes.contains(e2) && !primitiveTypes.contains(e1)))
+      else if (
+        (primitiveTypes.contains(e1) && !primitiveTypes.contains(
+          e2
+        )) || (primitiveTypes.contains(e2) && !primitiveTypes.contains(e1))
+      )
         Reporter.fatal("Cannot compare primitive and class type")
 
       //Both have class types and are subsets of each other
-      else if (!primitiveTypes.contains(e1) && !primitiveTypes.contains(e2) && (!e1.isSubTypeOf(e2) || !e2.isSubTypeOf(e1)))
+      else if (
+        !primitiveTypes.contains(e1) && !primitiveTypes
+          .contains(e2) && (!e1.isSubTypeOf(e2) || !e2.isSubTypeOf(e1))
+      )
         Reporter.fatal("Error in comparison")
     }
 
@@ -77,7 +93,13 @@ object TypeChecking extends Phase[Program, Program] {
       if (expected.isEmpty) {
         tpe
       } else if (!expected.exists(e => tpe.isSubTypeOf(e))) {
-        Reporter.error("Type error: expected: " + expected.toList.mkString(" or ") + ", found: " + tpe, expr)
+        import io.punkt0.Reporter
+        Reporter.error(
+          "Type error: expected: " + expected.toList.mkString(
+            " or "
+          ) + ", found: " + tpe,
+          expr
+        )
         expected.head
       } else {
         tpe
@@ -93,7 +115,10 @@ object TypeChecking extends Phase[Program, Program] {
 
       //Set type parent
       val mainParentSymbol = prog.main.parent.getSymbol
-      val tpeParentMain = getType(prog.main.parent, Some(mainParentSymbol.asInstanceOf[ClassSymbol]))
+      val tpeParentMain = getType(
+        prog.main.parent,
+        Some(mainParentSymbol.asInstanceOf[ClassSymbol])
+      )
       prog.main.parent.setType(tpeParentMain)
 
       tcVarDecl(prog.main.vars)
@@ -102,7 +127,7 @@ object TypeChecking extends Phase[Program, Program] {
         val tpe = getTpeExpr(mainExprs(i))
         prog.main.exprs(i).setType(tpe)
       }
-      
+
       //SetType Exprs
       setTpeExprs(prog.main.exprs)
 
@@ -112,10 +137,14 @@ object TypeChecking extends Phase[Program, Program] {
         tcClass(prog.classes(i))
 
         if (prog.classes(i).parent.isDefined) {
-          val tpeParentClass = getType(prog.classes(i).parent.get, Some(prog.classes(i).getSymbol.parent.get))
+          val tpeParentClass = getType(
+            prog.classes(i).parent.get,
+            Some(prog.classes(i).getSymbol.parent.get)
+          )
           prog.classes(i).parent.get.setType(tpeParentClass)
         }
-        val tpeClass = getType(prog.classes(i).id, Some(prog.classes(i).getSymbol))
+        val tpeClass =
+          getType(prog.classes(i).id, Some(prog.classes(i).getSymbol))
 
         prog.classes(i).setType(tpeClass)
       }
@@ -125,7 +154,7 @@ object TypeChecking extends Phase[Program, Program] {
       tcVarDecl(classDecl.vars)
       tcMethodDecl(classDecl.methods)
     }
-    
+
     def tcVarDecl(vars: List[VarDecl]): Unit = {
       for (i <- 0 until vars.length if vars.length > 0) {
         val tpe = getType(vars(i).tpe, None)
@@ -141,10 +170,10 @@ object TypeChecking extends Phase[Program, Program] {
 
         //SetType VarDecl
         tcVarDecl(methods(i).vars)
-        
+
         //SetType Exprs
         setTpeExprs(methods(i).exprs)
-        
+
         //Get Type RETURN TYPE
         val rTpe = getType(methods(i).retType, None)
 
@@ -160,13 +189,13 @@ object TypeChecking extends Phase[Program, Program] {
       }
     }
 
-    def setTpeExprs(exprs: List[ExprTree]) : Unit = {
-      exprs.foreach(x =>{
+    def setTpeExprs(exprs: List[ExprTree]): Unit = {
+      exprs.foreach(x => {
         var exprTpe = getTpeExpr(x)
         x.setType(exprTpe)
       })
     }
-    
+
     def getTpeExpr(expr: ExprTree): Type = expr match {
 
       case And(e1, e2) => {
@@ -236,7 +265,10 @@ object TypeChecking extends Phase[Program, Program] {
         rTpe
       }
       case New(e) => {
-        if (!prog.classes.find(c => c.id.value.equals(e.getSymbol.name)).isDefined) {
+        if (
+          !prog.classes.find(c => c.id.value.equals(e.getSymbol.name)).isDefined
+        ) {
+          import io.punkt0.Reporter
           Reporter.error("Cannot instantiate object of this class", e)
         }
 
@@ -275,7 +307,7 @@ object TypeChecking extends Phase[Program, Program] {
 
         tcExpr(cond, TBoolean)
         cond.setType(TBoolean)
-        
+
         if (!elseE.isDefined) {
           val bodyTpe = getTpeExpr(body)
           body.setType(bodyTpe)
@@ -332,17 +364,24 @@ object TypeChecking extends Phase[Program, Program] {
         case True()       => rTpe = TBoolean
         case False()      => rTpe = TBoolean
         case Identifier(id) => {
-          val symbolClass = expr.asInstanceOf[Identifier].getSymbol.getClass.getSimpleName
+          val symbolClass =
+            expr.asInstanceOf[Identifier].getSymbol.getClass.getSimpleName
 
           if (symbolClass.equals("VariableSymbol"))
-            rTpe = expr.asInstanceOf[Identifier].getSymbol.asInstanceOf[VariableSymbol].tpe
-
+            rTpe = expr
+              .asInstanceOf[Identifier]
+              .getSymbol
+              .asInstanceOf[VariableSymbol]
+              .tpe
           else if (symbolClass.equals("ClassSymbol"))
-            rTpe = TClass(expr.asInstanceOf[Identifier].getSymbol.asInstanceOf[ClassSymbol])
+            rTpe = TClass(
+              expr.asInstanceOf[Identifier].getSymbol.asInstanceOf[ClassSymbol]
+            )
         }
         case This() => rTpe = expr.getType
         case Null() => rTpe = TAnyType
         case _ => {
+          import io.punkt0.Reporter
           Reporter.error("Type error", expr)
           rTpe = TError
         }
@@ -356,10 +395,12 @@ object TypeChecking extends Phase[Program, Program] {
       val tpE2 = getTpeExpr(e2)
 
       if (!tpE1.equals(TBoolean)) {
+        import io.punkt0.Reporter
         Reporter.error("Expected: TBoolean, Found: " + tpE1, e1)
         TError
 
       } else if (!tpE2.equals(TBoolean)) {
+        import io.punkt0.Reporter
         Reporter.error("Expected: TBoolean, Found: " + tpE2, e2)
         TError
 
@@ -372,10 +413,12 @@ object TypeChecking extends Phase[Program, Program] {
       val tpE2 = getTpeExpr(e2)
 
       if (!tpE1.equals(TInt)) {
+        import io.punkt0.Reporter
         Reporter.error("Expected: TInt, Found: " + tpE1, e1)
         TError
 
       } else if (!tpE2.equals(TInt)) {
+        import io.punkt0.Reporter
         Reporter.error("Expected: TInt, Found: " + tpE2, e2)
         TError
 
@@ -384,16 +427,21 @@ object TypeChecking extends Phase[Program, Program] {
     }
 
     def tcArgs(method: Identifier, args: List[ExprTree]): Unit = {
+      import io.punkt0.Reporter
+
       val methodSymbol = method.getSymbol.asInstanceOf[MethodSymbol]
       if (!methodSymbol.params.size.equals(args.length))
-        Reporter.error("Number of arguments does not match method signature", method)
+        Reporter.error(
+          "Number of arguments does not match method signature",
+          method
+        )
 
       val params = methodSymbol.params.toList
       val newArgTpe = new ListBuffer[Type]
-    
-      for(i <- 0 until params.length){
+
+      for (i <- 0 until params.length) {
         tcExpr(args(i), params(i)._2.tpe)
-        
+
         //Add args to the methodSymbol
         newArgTpe.+=:(getTpeExpr(args(i)))
       }
@@ -402,12 +450,27 @@ object TypeChecking extends Phase[Program, Program] {
     }
 
     def attachMethodSymbol(obj: ExprTree, method: Identifier): MethodSymbol = {
-      if (!obj.getType.asInstanceOf[TClass].classSymbol.lookupMethod(method.value).isDefined) {
+      if (
+        !obj.getType
+          .asInstanceOf[TClass]
+          .classSymbol
+          .lookupMethod(method.value)
+          .isDefined
+      ) {
+        import io.punkt0.Reporter
         Reporter.error("This object does not contain such a method", method)
       }
 
-      val methodSymbol = obj.getType.asInstanceOf[TClass].classSymbol.lookupMethod(method.value).get
-      var newMethodSymbol = new MethodSymbol(methodSymbol.name, methodSymbol.classSymbol, methodSymbol.tpe)
+      val methodSymbol = obj.getType
+        .asInstanceOf[TClass]
+        .classSymbol
+        .lookupMethod(method.value)
+        .get
+      var newMethodSymbol = new MethodSymbol(
+        methodSymbol.name,
+        methodSymbol.classSymbol,
+        methodSymbol.tpe
+      )
       newMethodSymbol.params = methodSymbol.params
 
       newMethodSymbol
@@ -416,7 +479,16 @@ object TypeChecking extends Phase[Program, Program] {
     def isNotReassignParam(id: Identifier): Unit = {
       for (i <- 0 until prog.classes.length) {
         for (j <- 0 until prog.classes(i).methods.size) {
-          if (prog.classes(i).methods(j).getSymbol.params.get(id.value).equals(id.getSymbol))
+          import io.punkt0.Reporter
+          if (
+            prog
+              .classes(i)
+              .methods(j)
+              .getSymbol
+              .params
+              .get(id.value)
+              .equals(id.getSymbol)
+          )
             Reporter.error("Cannot reassign parameter", id)
         }
       }
