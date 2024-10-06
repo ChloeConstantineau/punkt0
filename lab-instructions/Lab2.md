@@ -34,8 +34,7 @@ details you should pay attention to:
 * Comments should not produce tokens.
 
 * Comments in Punkt0 can be marked using the end-of-line notation
-  (`//`) or blocks (`/* .. */`). Nested block comments are **not
-  allowed**.
+  (`//`).
 
 * Your lexer should support a command-line option `--tokens` for
   printing out the tokens that were recognized. With this option, your

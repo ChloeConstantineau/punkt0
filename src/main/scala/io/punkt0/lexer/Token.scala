@@ -2,11 +2,7 @@ package io.punkt0.lexer
 
 import io.punkt0.Position
 
-case class Token(kind: TokenKind, position: Position) {
-  override def toString: String = s"$kind${position.location}"
-}
-
-trait TokenKind
+sealed trait TokenKind
 
 case object STRLITKIND extends TokenKind
 case object INTLITKIND extends TokenKind
@@ -52,19 +48,33 @@ case object NULL extends TokenKind // null
 case object NEW extends TokenKind // new
 case object PRINTLN extends TokenKind // println
 
+sealed trait BaseToken {
+  def kind: TokenKind
+  def position: Position
+}
+
 // identifiers
-class ID(value: String, position: Position) extends Token(IDKIND, position) {
+case class ID(value: String, position: Position) extends BaseToken {
+  def kind: TokenKind = IDKIND
   override def toString: String = s"ID($value)${position.location}"
 }
 
 // integer literals
-class INTLIT(value: Int, position: Position)
-    extends Token(INTLITKIND, position) {
+case class INTLIT(value: Int, position: Position) extends BaseToken {
+  def kind: TokenKind = INTLITKIND
   override def toString: String = s"INT($value)${position.location}"
 }
 
 // string literals
-class STRLIT(value: String, position: Position)
-    extends Token(STRLITKIND, position) {
+case class STRLIT(
+    value: String,
+    position: Position
+) extends BaseToken {
+  def kind: TokenKind = STRLITKIND
   override def toString: String = s"STR($value)${position.location}"
+}
+
+// Others
+case class Token(kind: TokenKind, position: Position) extends BaseToken {
+  override def toString: String = s"$kind${position.location}"
 }

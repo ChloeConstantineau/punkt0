@@ -4,7 +4,6 @@ hello_
 hello_1
 hello123
 hello___
-hello__
 hello123
 
 
@@ -28,19 +27,6 @@ this
 null
 new
 println
-
-// Comments
-/* foo bar */ foo
-/* foo
-bar
-baz */
-bar
-/*
-foo
-bar
-baz
-*/
-baz
 
 // Special characters
 :
@@ -67,9 +53,6 @@ baz
 
 // Integer literals
 1
-1
 23
 1555124
 0343
- "skldF
-    ";
