@@ -55,10 +55,9 @@ object Main {
 
     //LEXER
     val tokens = Lexer.run(context.file.get)(context)
-    tokens.foreach(t => println(t.toString))
 
-//    if (context.doTokens)
-//      tokens.toList.foreach(println(_))
+    if (context.doTokens)
+      tokens.toList.foreach(println(_))
 
 //    //PARSER
 //    val ast = Parser.run(tokens)(context)
