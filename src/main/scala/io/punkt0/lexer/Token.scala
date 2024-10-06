@@ -1,9 +1,9 @@
 package io.punkt0.lexer
 
-import io.punkt0.Positioned
+import io.punkt0.Position
 
-class Token(val kind: TokenKind) extends Positioned {
-  override def toString: String = kind.toString
+case class Token(kind: TokenKind, position: Position) {
+  override def toString: String = s"$kind${position.location}"
 }
 
 trait TokenKind
@@ -53,16 +53,18 @@ case object NEW extends TokenKind // new
 case object PRINTLN extends TokenKind // println
 
 // identifiers
-class ID(val value: String) extends Token(IDKIND) {
-  override def toString: String = "ID(" + value + ")"
+class ID(value: String, position: Position) extends Token(IDKIND, position) {
+  override def toString: String = s"ID($value)${position.location}"
 }
 
 // integer literals
-class INTLIT(val value: Int) extends Token(INTLITKIND) {
-  override def toString: String = "INT(" + value + ")"
+class INTLIT(value: Int, position: Position)
+    extends Token(INTLITKIND, position) {
+  override def toString: String = s"INT($value)${position.location}"
 }
 
 // string literals
-class STRLIT(val value: String) extends Token(STRLITKIND) {
-  override def toString: String = "STR(" + value + ")"
+class STRLIT(value: String, position: Position)
+    extends Token(STRLITKIND, position) {
+  override def toString: String = s"STR($value)${position.location}"
 }

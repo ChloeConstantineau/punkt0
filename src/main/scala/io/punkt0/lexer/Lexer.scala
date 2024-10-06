@@ -1,223 +1,164 @@
 package io.punkt0.lexer
 
-import io.punkt0.{Context, Phase}
-import io.punkt0.Reporter._
-import io.punkt0.Positioned
+import io.punkt0.{Context, Phase, Position}
 
 import java.io.File
+import scala.annotation.tailrec
+import scala.io.Source
+import scala.util.matching.Regex
 
 object Lexer extends Phase[File, Iterator[Token]] {
 
-  val keywords = Map[String, TokenKind](
-    "class" -> CLASS,
-    "object" -> OBJECT,
-    "def" -> DEF,
-    "override" -> OVERRIDE,
-    "var" -> VAR,
-    "Boolean" -> BOOLEAN,
-    "Int" -> INT,
-    "String" -> STRING,
-    "Unit" -> UNIT,
-    "extends" -> EXTENDS,
-    "while" -> WHILE,
-    "if" -> IF,
-    "else" -> ELSE,
-    "true" -> TRUE,
-    "false" -> FALSE,
-    "this" -> THIS,
-    "null" -> NULL,
-    "new" -> NEW,
-    "println" -> PRINTLN
-  )
-
-  // indicates end of input
-  val EndOfFile: Char = java.lang.Character.MAX_VALUE
+  private val alphaR: Regex = "[a-zA-Z]".r
+  private val numericalR: Regex = "[0-9]".r
+  private val identifierR: Regex = "[a-zA-Z0-9_]".r
 
   def run(f: File)(ctx: Context): Iterator[Token] = {
+    val source = Source.fromFile(f)
+    val lines = source.getLines()
 
-    val source = scala.io.Source.fromFile(f)
+    @tailrec
+    def parseLines(
+        lines: Iterator[List[Char]],
+        accTokens: List[Token],
+        lineIndex: Int
+    ): List[Token] = {
 
-    // the last char seen in the input stream
-    var currentChar = '\u0000'
-    // used to detect \r\n pairs and ouput only \n for them
-    var previousChar = '\u0000'
-
-    val buffer = new StringBuffer
-
-    def readChar(): Char = {
-      if (source.hasNext) source.next()
-      else EndOfFile
-    }
-
-    def currentPos(): Positioned = {
-      (new Positioned {}).setPos(f, source.pos)
-    }
-
-    /* puts the next character in the input stream in currentChar, or the
-     * special character EndOfFile if the stream is exhausted */
-    def nextChar(): Unit = {
-      if (currentChar == EndOfFile) return
-
-      currentChar = readChar()
-      previousChar =
-        if (previousChar == '\r' && currentChar == '\n') readChar()
-        else currentChar
-      currentChar = if (previousChar == '\r') '\n' else previousChar
-    }
-
-    /* removes comments and whitespace and reads next token */
-    def nextToken(): Token = {
-      while (currentChar == '/' || Character.isWhitespace(currentChar)) {
-        if (currentChar == '/') {
-          val tokenPos: Positioned = currentPos()
-          nextChar()
-
-          if (currentChar == '/') {
-            // skip comment
-            while (currentChar != '\n' && currentChar != EndOfFile) nextChar()
-          } else if (currentChar == '*') {
-            // skip block comment
-            var atEnd = false
-            while (!atEnd) {
-              while (currentChar != '*') {
-                if (currentChar == EndOfFile)
-                  fatal("unclosed block comment", currentPos())
-                nextChar()
-              }
-              nextChar()
-              if (currentChar == '/') {
-                atEnd = true
-                nextChar()
-              }
+      @tailrec
+      def parseLine(
+          line: List[Char],
+          tokens: List[Token],
+          columnIndex: Int
+      ): List[Token] = {
+        val cursor = new Position(line = lineIndex, column = columnIndex)
+        line match {
+          case ::(head, tail) =>
+            head match {
+              case ' ' =>
+                parseLine(
+                  tail,
+                  tokens,
+                  columnIndex + 1
+                )
+              case '"' =>
+                if (tail.contains('"')) {
+                  val stringLit = tail.takeWhile(_ != '"')
+                  parseLine(
+                    tail.drop(stringLit.length + 1),
+                    tokens ++ Iterator(new STRLIT(stringLit.mkString, cursor)),
+                    columnIndex + stringLit.length + 2
+                  )
+                } else
+                  parseLine(
+                    tail,
+                    tokens ++ Iterator(Token(BAD, cursor)),
+                    columnIndex + 1
+                  )
+              case '&' | '|' | '=' =>
+                val tokenKind = tail.headOption match {
+                  case Some('&')        => AND
+                  case Some('|')        => OR
+                  case Some('=')        => EQUALS
+                  case _ if head == '=' => EQSIGN
+                  case _                => BAD
+                }
+                if (tokenKind == EQUALS || tokenKind == BAD)
+                  parseLine(
+                    tail,
+                    tokens ++ Iterator(Token(tokenKind, cursor)),
+                    columnIndex + 1
+                  )
+                else
+                  parseLine(
+                    tail.drop(1),
+                    tokens ++ Iterator(Token(tokenKind, cursor)),
+                    columnIndex + 2
+                  )
+              case alphaR(_*) =>
+                val matched =
+                  tail.takeWhile(_.toString.matches(identifierR.regex)).mkString
+                val id = s"$head${matched}"
+                val token = Keywords.lookup(id) match {
+                  case Some(keyword) => Token(keyword, cursor)
+                  case None =>
+                    new ID(
+                      id,
+                      cursor
+                    )
+                }
+                parseLine(
+                  tail.drop(matched.length),
+                  tokens ++ Iterator(token),
+                  columnIndex + id.length
+                )
+              case numericalR(_*) =>
+                val matched =
+                  tail.takeWhile(_.toString.matches(numericalR.regex)).mkString
+                val number = s"$head$matched"
+                parseLine(
+                  tail.drop(matched.length),
+                  tokens ++ Iterator(new INTLIT(number.toInt, cursor)),
+                  columnIndex + number.length
+                )
+              case '/' =>
+                tail.headOption match {
+                  case Some('/') =>
+                    parseLine(Nil, tokens, columnIndex + tail.length)
+                  case Some('*') => ???
+                  case _ =>
+                    parseLine(
+                      tail,
+                      tokens ++ Iterator(
+                        Token(
+                          DIV,
+                          cursor
+                        )
+                      ),
+                      columnIndex + 1
+                    )
+                }
+              case _ =>
+                val tokenKind = head match {
+                  case ':' => COLON
+                  case ';' => SEMICOLON
+                  case '.' => DOT
+                  case ',' => COMMA
+                  case '!' => BANG
+                  case '(' => LPAREN
+                  case ')' => RPAREN
+                  case '{' => LBRACE
+                  case '}' => RBRACE
+                  case '<' => LESSTHAN
+                  case '+' => PLUS
+                  case '-' => MINUS
+                  case '*' => TIMES
+                  case '/' => DIV
+                  case _   => BAD
+                }
+                parseLine(
+                  tail,
+                  tokens ++ Iterator(
+                    Token(
+                      tokenKind,
+                      cursor
+                    )
+                  ),
+                  columnIndex + 1
+                )
             }
-          } else {
-            return (new Token(DIV)).setPos(tokenPos)
-          }
-        } else {
-          // skip whitespace
-          nextChar()
+          case Nil =>
+            if (lines.isEmpty) tokens ++ Iterator(Token(EOF, cursor))
+            else tokens
         }
       }
 
-      readToken()
-    }
-
-    /* read next token from stream */
-    def readToken(): Token = {
-      val tokenPos = currentPos()
-
-      currentChar match {
-        case EndOfFile => new Token(EOF).setPos(tokenPos)
-
-        case _ if Character.isLetter(currentChar) =>
-          buffer.setLength(0)
-          do {
-            buffer.append(currentChar)
-            nextChar()
-          } while (Character.isLetterOrDigit(currentChar) || currentChar == '_')
-          val str = buffer.toString
-          keywords.get(str) match {
-            case Some(tokenInfo) =>
-              new Token(tokenInfo).setPos(tokenPos)
-            case None =>
-              new ID(str).setPos(tokenPos)
-          }
-
-        case '0' =>
-          nextChar()
-          new INTLIT(0).setPos(tokenPos)
-
-        case _ if Character.isDigit(currentChar) =>
-          buffer.setLength(0)
-          do {
-            buffer.append(currentChar)
-            nextChar()
-          } while (Character.isDigit(currentChar))
-          val num = scala.math.BigInt(buffer.toString)
-          if (!num.isValidInt) {
-            error("value out of integer range", tokenPos)
-            new Token(BAD).setPos(tokenPos)
-          } else {
-            new INTLIT(num.intValue).setPos(tokenPos)
-          }
-
-        case '"' =>
-          buffer.setLength(0)
-          nextChar()
-          while (currentChar != '"') {
-            if (currentChar == '\n' || currentChar == EndOfFile)
-              fatal("unclosed string literal", tokenPos)
-            buffer.append(currentChar)
-            nextChar()
-          }
-          nextChar()
-          new STRLIT(buffer.toString).setPos(tokenPos)
-
-        case ':' => nextChar(); new Token(COLON).setPos(tokenPos)
-        case ';' => nextChar(); new Token(SEMICOLON).setPos(tokenPos)
-        case '.' => nextChar(); new Token(DOT).setPos(tokenPos)
-        case ',' => nextChar(); new Token(COMMA).setPos(tokenPos)
-        case '!' => nextChar(); new Token(BANG).setPos(tokenPos)
-        case '(' => nextChar(); new Token(LPAREN).setPos(tokenPos)
-        case ')' => nextChar(); new Token(RPAREN).setPos(tokenPos)
-        case '{' => nextChar(); new Token(LBRACE).setPos(tokenPos)
-        case '}' => nextChar(); new Token(RBRACE).setPos(tokenPos)
-        case '<' => nextChar(); new Token(LESSTHAN).setPos(tokenPos)
-        case '+' => nextChar(); new Token(PLUS).setPos(tokenPos)
-        case '-' => nextChar(); new Token(MINUS).setPos(tokenPos)
-        case '*' => nextChar(); new Token(TIMES).setPos(tokenPos)
-        case '=' =>
-          nextChar()
-          if (currentChar == '=') {
-            nextChar()
-            new Token(EQUALS).setPos(tokenPos)
-          } else {
-            new Token(EQSIGN).setPos(tokenPos)
-          }
-        case '&' =>
-          nextChar()
-          if (currentChar == '&') {
-            nextChar()
-            new Token(AND).setPos(tokenPos)
-          } else {
-            error("single '&'", tokenPos)
-            new Token(BAD).setPos(tokenPos)
-          }
-        case '|' =>
-          nextChar()
-          if (currentChar == '|') {
-            nextChar()
-            new Token(OR).setPos(tokenPos)
-          } else {
-            error("single '|'", tokenPos)
-            new Token(BAD).setPos(tokenPos)
-          }
-        case _ =>
-          error("invalid character: " + currentChar, currentPos())
-          nextChar()
-          new Token(BAD).setPos(tokenPos)
+      if (lines.isEmpty) {
+        accTokens
+      } else {
+        parseLines(lines, parseLine(lines.next(), accTokens, 1), lineIndex + 1)
       }
     }
 
-    nextChar()
-
-    new Iterator[Token] {
-      var tokenCache = nextToken()
-      var atEnd = false
-
-      def hasNext = {
-        tokenCache.kind != EOF || !atEnd
-      }
-
-      def next() = {
-        val r = tokenCache
-        tokenCache = nextToken()
-        if (r.kind == EOF) {
-          atEnd = true
-        }
-        r
-      }
-    }
-
+    parseLines(lines.map(_.toList), List.empty, 1).iterator
   }
 }

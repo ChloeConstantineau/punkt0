@@ -1,99 +1,81 @@
 package io.punkt0
 
+//import io.punkt0.analyzer._
+//import io.punkt0.ast._
+//import io.punkt0.code._
+import io.punkt0.lexer._
+
 import java.io.File
-import lexer._
-import ast._
-import analyzer._
-import code._
+import scala.annotation.tailrec
 
 object Main {
 
-  def processOptions(args: Array[String]): Context = {
-    var ctx = Context()
-
-    def processOption(args: List[String]): Unit = args match {
+  @tailrec
+  private def processOptions(args: List[String], context: Context): Context =
+    args match {
 
       case "--tokens" :: args =>
-        ctx = ctx.copy(doTokens = true)
-        processOption(args)
+        processOptions(args, context.copy(doTokens = true))
 
       case "--help" :: args =>
-        ctx = ctx.copy(doHelp = true)
-        displayHelp()
-        processOption(args)
+        println("""
+            |Usage: <punkt0c> [options] <file>"
+            |Options include:"
+            | --help        displays this help"
+            | -d <outdir>   generates class files in the specified directory"
+            | --tokens       prints all the token found"
+            | --ast          prints out the AST"
+            | --print        pretty prints the AST"
+            |""".stripMargin)
+        processOptions(args, context.copy(doHelp = true))
 
       case "-d" :: out :: args =>
-        ctx = ctx.copy(outDir = Some(new File(out)))
-        processOption(args)
+        processOptions(args, context.copy(outDir = Some(new File(out))))
 
       case "--ast" :: args =>
-        ctx = ctx.copy(doAST = true) //TODO make/add the function
-        processOption(args)
+        processOptions(
+          args,
+          context.copy(doAST = true)
+        ) //TODO make/add the function
 
       case "--print" :: args =>
-        ctx = ctx.copy(doPrintPrettyTree = true) //TODO make/add the function
-        processOption(args)
+        processOptions(
+          args,
+          context.copy(doPrintPrettyTree = true)
+        ) //TODO make/add the function
 
       case f :: args =>
-        ctx = ctx.copy(file = Some(new File(f)))
-        processOption(args)
+        processOptions(args, context.copy(file = Some(new File(f))))
 
-      case List() =>
-
+      case List() => context
     }
-
-    processOption(args.toList)
-
-    ctx
-  }
-
-  def printTokens(it: Iterator[Token]): Unit = {
-    var tokenList = it.toList;
-    for (i <- 0 until tokenList.length) {
-      println(tokenList(i) + "(" + tokenList(i).posString + ")");
-    }
-  }
-
-  def displayHelp(): Unit = {
-    println("Usage: <punkt0c> [options] <file>")
-    println("Options include:")
-    println(" --help        displays this help")
-    println(" -d <outdir>   generates class files in the specified directory")
-    println(" --tokens       prints all the token found")
-    println(" --ast          prints out the AST")
-    println(" --print        pretty prints the AST")
-  }
 
   def main(args: Array[String]): Unit = {
-    val ctx = processOptions(args)
+    val context = processOptions(args.toList, Context())
 
     //LEXER
-    val tokens = Lexer.run(ctx.file.get)(ctx)
+    val tokens = Lexer.run(context.file.get)(context)
+    tokens.foreach(t => println(t.toString))
 
-    if (ctx.doTokens) {
-      printTokens(tokens)
-      sys.exit(0)
-    }
+//    if (context.doTokens)
+//      tokens.toList.foreach(println(_))
 
-    //PARSER
-    val ast = Parser.run(tokens)(ctx)
-
-    if (ctx.doAST)
-      println(ast)
-
-    if (ctx.doPrintPrettyTree)
-      Printer.apply(ast)
-
-    if (ctx.doAST || ctx.doTokens)
-      sys.exit(0)
-
-    /*  //EVERYTHING
-    val allPhases = Lexer andThen Parser andThen NameAnalysis andThen TypeChecking andThen CodeGeneration
-    allPhases.run(ctx.file.get)(ctx)
-     */
-    val name = NameAnalysis.run(ast)(ctx)
-    val typeCk = TypeChecking.run(name)(ctx)
-    CodeGeneration.run(typeCk)(ctx)
-
+//    //PARSER
+//    val ast = Parser.run(tokens)(context)
+//
+//    if (context.doAST)
+//      println(ast)
+//
+//    if (context.doPrintPrettyTree)
+//      Printer.apply(ast)
+//
+//    //EVERYTHING
+//    val allPhases =
+//      Lexer andThen Parser andThen NameAnalysis andThen TypeChecking andThen CodeGeneration
+//    allPhases.run(context.file.get)(context)
+//
+//    val name = NameAnalysis.run(ast)(context)
+//    val typeCk = TypeChecking.run(name)(context)
+//    CodeGeneration.run(typeCk)(context)
   }
 }
