@@ -1,8 +1,5 @@
 package io.punkt0
 
-import java.io.File
-import scala.io.Source
-
 object Position {
   private val LINE_BITS = 20
   private val COLUMN_BITS = 31 - LINE_BITS
@@ -18,12 +15,4 @@ object Position {
 
 case class Position(line: Int, column: Int) {
   def location: String = s"($line:$column)"
-//  def show(file: File): String = {
-//    val lines =
-//      Source.fromFile(file).withPositioning(true).getLines().toIndexedSeq
-//    s"""
-//       |${lines(line - 1)}
-//       |${" " * column + "^"}
-//       |""".stripMargin
-//  }
 }

@@ -85,9 +85,3 @@ should yield an identical result, though.
 
 * Implement a new command-line option `--print` for pretty-printing
   the AST of a program.
-
-
-## Stubs
-
-We provide <a href="parser-stubs-v2.zip">code stubs</a> for your parser
-component. The ZIP archive also contains all files of the lexer stubs.

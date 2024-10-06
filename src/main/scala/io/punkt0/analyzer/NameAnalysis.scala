@@ -9,7 +9,7 @@
 //
 //object NameAnalysis extends Phase[Program, Program] {
 //
-//  val acceptableAssignType = List(
+//  private val acceptableAssignType = List(
 //    New.toString(),
 //    Null.toString(),
 //    IntLit.toString(),
@@ -27,7 +27,6 @@
 //      case IntType()     => TInt
 //      case UnitType()    => TUnit
 //      case Identifier(value) => {
-//        import io.punkt0.Reporter //Check Class exists
 //        if (!globalScope.classes.contains(value))
 //          Reporter.fatal(
 //            "This type (" + value + ") is not declared, it cannot be used",
@@ -46,7 +45,6 @@
 //      case Formal(tpe, id) =>
 //        new VariableSymbol(id.value, getType(tpe)).setPos(aTree)
 //      case _ =>
-//        import io.punkt0.Reporter
 //        Reporter.fatal(
 //          "Expected a varriable declaration or a formal declaration",
 //          aTree
@@ -69,7 +67,7 @@
 //      newMethodSymbol.members = attachMembers(method.vars)
 //
 //      if (method.overrides) {
-//        var overridenMethodSymbol =
+//        val overridenMethodSymbol =
 //          classSymbol.lookupMethod(method.id.toString())
 //        newMethodSymbol.overridden = overridenMethodSymbol
 //      }
@@ -85,7 +83,6 @@
 //      var matchingMethod: Option[MethodSymbol] = None
 //
 //      if (method.overrides) {
-//        import io.punkt0.Reporter
 //
 //        //Verify Class has a parent to override
 //        if (!parent.isDefined)
@@ -136,7 +133,6 @@
 //          .lookupMethodInParentTree(method.id.value)
 //          .isDefined
 //      ) {
-//        import io.punkt0.Reporter
 //        Reporter.error(
 //          "This method has already been declared in the parent tree. Solution is to override the method",
 //          method
@@ -148,7 +144,7 @@
 //    def attachClasses(): Unit = {
 //
 //      //Iterates every class in program
-//      for (i <- 0 until prog.classes.length) {
+//      for (i <- prog.classes.indices) {
 //
 //        //Verify General Constraints
 //        checkConstraintClassDecl(prog.classes(i))
@@ -164,7 +160,6 @@
 //    }
 //
 //    def checkConstraintClassDecl(classDecl: ClassDecl): Unit = {
-//      import io.punkt0.Reporter
 //
 //      //Cannot define Main more than once
 //      if (classDecl.id.value.equals("Main"))
@@ -188,7 +183,7 @@
 //    def attachParentClasses(): Unit = {
 //
 //      for (i <- 0 until prog.classes.length) {
-//        var classSymbol = globalScope.classes.get(prog.classes(i).id.value).get
+//        val classSymbol = globalScope.classes.get(prog.classes(i).id.value).get
 //
 //        if (prog.classes(i).parent.isDefined) {
 //          //Verify Parent Constraints
@@ -208,7 +203,6 @@
 //        classDecl: ClassDecl,
 //        newClassSymbol: ClassSymbol
 //    ): Unit = {
-//      import io.punkt0.Reporter
 //      //Check Parent Class Exists
 //      if (!globalScope.classes.contains(classDecl.parent.get.value))
 //        Reporter.error(
@@ -218,7 +212,7 @@
 //    }
 //
 //    def searchCyclicClassDependence(): Unit = {
-//      for (i <- 0 until prog.classes.length) {
+//      for (i <- prog.classes.indices) {
 //        var classSymbol = globalScope.classes.get(prog.classes(i).id.value).get
 //
 //        if (prog.classes(i).parent.isDefined) {
@@ -239,7 +233,6 @@
 //        var nextGeneration = classSymbol.parent.get.parent;
 //
 //        while (nextGeneration.isDefined) {
-//          import io.punkt0.Reporter
 //          if (visitedClasses.contains(nextGeneration.get))
 //            Reporter.fatal(
 //              "The class declared has a cycle of dependendies with its parents",
@@ -259,7 +252,6 @@
 //
 //      //Create Main Parent
 //      if (!prog.main.parent.value.equals("App")) {
-//        import io.punkt0.Reporter
 //        Reporter.error("Main.parent must be App", prog.main)
 //      }
 //      globalScope.mainClass.parent = Some(
@@ -272,10 +264,10 @@
 //    }
 //
 //    def analyseClasses(): Unit = {
-//      for (i <- 0 until prog.classes.length if prog.classes.length.>(0)) {
+//      for (i <- prog.classes.indices if prog.classes.nonEmpty) {
 //
-//        var aClass = prog.classes(i)
-//        var aClassSymbol = globalScope.lookupClass(aClass.id.value).get
+//        val aClass = prog.classes(i)
+//        val aClassSymbol = globalScope.lookupClass(aClass.id.value).get
 //
 //        //Attach Members
 //        aClassSymbol.members = attachMembers(aClass.vars)
@@ -296,7 +288,7 @@
 //      analyseVarAssign(prog.main.vars, globalScope.mainClass, None)
 //
 //      //Attach Identifiers from exprs if present
-//      for (i <- 0 until prog.main.exprs.length if prog.main.exprs.length.>(0)) {
+//      for (i <- prog.main.exprs.indices if prog.main.exprs.nonEmpty) {
 //        getExpr(prog.main.exprs(i), globalScope.mainClass, None)
 //      }
 //    }
@@ -307,7 +299,7 @@
 //        methodSymbol: Option[MethodSymbol]
 //    ): Unit = {
 //
-//      for (i <- 0 until vars.length if vars.length.>(0)) {
+//      for (i <- vars.indices if vars.nonEmpty) {
 //        import io.punkt0.Reporter
 //
 //        //Check type variable is of Id type and if this class exists
@@ -326,8 +318,6 @@
 //        //Verify initializer is either constant or New
 //        checkAssignIsValid(vars(i).expr)
 //
-//        var assignExprClass = vars(i).expr.getClass.getSimpleName
-//
 //        getExpr(vars(i).expr, classSymbol, methodSymbol)
 //
 //      }
@@ -335,7 +325,6 @@
 //
 //    def checkAssignIsValid(variable: ExprTree): Unit = {
 //      if (!acceptableAssignType.contains(variable.getClass.getSimpleName)) {
-//        import io.punkt0.Reporter
 //        Reporter.error(
 //          "This variable assign is not permitted : " + variable.getClass.getSimpleName + ". Must be of type : New, Null, Boolean, IntLit or StringLit.",
 //          variable
@@ -346,7 +335,7 @@
 //    def attachMembers(vars: List[VarDecl]): Map[String, VariableSymbol] = {
 //      var mapMembers = scala.collection.mutable.Map[String, VariableSymbol]()
 //
-//      for (i <- 0 until vars.length if vars.length.>(0)) {
+//      for (i <- vars.indices if vars.nonEmpty) {
 //        import io.punkt0.Reporter
 //        if (!mapMembers.contains(vars(i).id.value)) {
 //
@@ -356,9 +345,7 @@
 //
 //        } else
 //          Reporter.error(
-//            "This variable has already been declared at line " + mapMembers
-//              .get(vars(i).id.value)
-//              .get
+//            "This variable has already been declared at line " + mapMembers(vars(i).id.value)
 //              .posString,
 //            vars(i)
 //          )
@@ -373,11 +360,10 @@
 //    ): Map[String, MethodSymbol] = {
 //      var mapMethods = scala.collection.mutable.Map[String, MethodSymbol]()
 //
-//      for (i <- 0 until methods.length if (methods.length.>(0))) {
-//        import io.punkt0.Reporter
+//      for (i <- methods.indices if methods.nonEmpty) {
 //        if (!mapMethods.contains(methods(i).id.value)) {
 //
-//          var methodSymbol = makeMethodSymbol(methods(i), classSymbol)
+//          val methodSymbol = makeMethodSymbol(methods(i), classSymbol)
 //          methods(i).setSymbol(methodSymbol)
 //
 //          //Analyse variable assigns
@@ -388,7 +374,7 @@
 //          allExprs.++=(methods(i).exprs)
 //          allExprs.+=(methods(i).retExpr)
 //
-//          for (j <- 0 until allExprs.length) {
+//          for (j <- allExprs.indices) {
 //            getExpr(allExprs(j), classSymbol, Some(methodSymbol))
 //          }
 //
@@ -396,9 +382,7 @@
 //          mapMethods += (methods(i).id.value -> methodSymbol)
 //        } else
 //          Reporter.error(
-//            "This method has already been declared here " + mapMethods
-//              .get(methods(i).id.value)
-//              .get
+//            "This method has already been declared here " + mapMethods(methods(i).id.value)
 //              .posString,
 //            methods(i)
 //          )
@@ -412,13 +396,13 @@
 //    ): Map[String, VariableSymbol] = {
 //      var mapParams = scala.collection.immutable.Map[String, VariableSymbol]()
 //
-//      if (params.length.>(0)) {
-//        for (i <- 0 until params.length) {
+//      if (params.nonEmpty) {
+//        for (i <- params.indices) {
 //          import io.punkt0.Reporter
 //          if (mapParams.contains(params(i).id.value))
 //            Reporter.error("This params has already been declared")
 //
-//          var variableSymbol = makeVariableSymbol(params(i))
+//          val variableSymbol = makeVariableSymbol(params(i))
 //
 //          params(i).setSymbol(variableSymbol)
 //          params(i).setType(getType(params(i).tpe))
@@ -426,7 +410,7 @@
 //
 //        }
 //      }
-//      mapParams.toMap
+//      mapParams
 //    }
 //
 //    def getExpr(
@@ -435,7 +419,6 @@
 //        methodSymbol: Option[MethodSymbol]
 //    ): Unit = {
 //      expr match {
-//
 //        case Not(expr) => {
 //          getExpr(expr, classSymbol, methodSymbol)
 //        }
@@ -454,7 +437,7 @@
 //          }
 //        }
 //        case Block(listExpr) => {
-//          for (i <- 0 until listExpr.length) {
+//          for (i <- listExpr.indices) {
 //            getExpr(listExpr(i), classSymbol, methodSymbol)
 //          }
 //        }
@@ -494,9 +477,9 @@
 //          getExpr(lhs, classSymbol, methodSymbol)
 //          getExpr(rhs, classSymbol, methodSymbol)
 //        }
-//        case MethodCall(obj, method, args) => {
+//        case MethodCall(obj, _, args) => {
 //          getExpr(obj, classSymbol, methodSymbol)
-//          for (i <- 0 until args.length) {
+//          for (i <- args.indices) {
 //            getExpr(args(i), classSymbol, methodSymbol)
 //          }
 //        }
@@ -511,7 +494,6 @@
 //    ): Unit = {
 //      expr match {
 //        case Identifier(id) => {
-//
 //          //Is a method member or param
 //          if (
 //            methodSymbol.isDefined && methodSymbol.get.lookupVar(id).isDefined
@@ -528,34 +510,29 @@
 //
 //            //Case where variable of superclass is used, create current class symbol instance, set symbol and add to class members
 //          } else if (classSymbol.lookupVar(id).isDefined) {
-//
 //            val inheritedMember = classSymbol.lookupVar(id).get
 //            val newMemberSymbol =
 //              new VariableSymbol(inheritedMember.name, inheritedMember.tpe)
 //
 //            expr.asInstanceOf[Identifier].setSymbol(newMemberSymbol)
-//            globalScope.classes
-//              .get(classSymbol.name)
-//              .get
+//            globalScope.classes(classSymbol.name)
 //              .members += newMemberSymbol.name -> newMemberSymbol
 //
 //          } else {
-//            import io.punkt0.Reporter
 //            Reporter.error(
 //              "This variable has never been declared or is of type not definied"
 //            )
 //          }
 //        }
 //
-//        case New(id) => getExprIdentifier(id, classSymbol)
+//        case New(id) => getExprIdentifier(id)
 //        case This()  => expr.setType(TClass(classSymbol))
-//        case _       => None
+//        case _       =>
 //      }
 //
-//      def getExprIdentifier(expr: ExprTree, classSymbol: ClassSymbol): Unit = {
+//      def getExprIdentifier(expr: ExprTree): Unit = {
 //        expr match {
 //          case Identifier(id) => {
-//            import io.punkt0.Reporter
 //            if (globalScope.lookupClass(id).isDefined) {
 //              expr
 //                .asInstanceOf[Identifier]
@@ -567,7 +544,6 @@
 //              )
 //          }
 //          case _ =>
-//            import io.punkt0.Reporter
 //            Reporter.fatal("Expected an Identifier..")
 //        }
 //      }
@@ -582,5 +558,4 @@
 //
 //    prog
 //  }
-//
 //}
