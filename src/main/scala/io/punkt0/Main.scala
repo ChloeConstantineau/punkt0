@@ -1,7 +1,7 @@
 package io.punkt0
 
 //import io.punkt0.analyzer._
-//import io.punkt0.ast._
+import io.punkt0.ast._
 //import io.punkt0.code._
 import io.punkt0.lexer._
 
@@ -59,22 +59,23 @@ object Main {
     if (context.doTokens)
       tokens.toList.foreach(println(_))
 
-//    //PARSER
-//    val ast = Parser.run(tokens)(context)
+    //PARSER
+    val ast = Parser.run(tokens)(context)
+
+    if (context.doAST)
+      println(ast)
 //
-//    if (context.doAST)
-//      println(ast)
-//
-//    if (context.doPrintPrettyTree)
-//      Printer.apply(ast)
+    if (context.doPrintPrettyTree)
+      PrettyPrinter.apply(ast)
+
+//    val name = NameAnalysis.run(ast)(context)
+//    val typeCk = TypeChecking.run(name)(context)
+//    CodeGeneration.run(typeCk)(context)
 //
 //    //EVERYTHING
 //    val allPhases =
 //      Lexer andThen Parser andThen NameAnalysis andThen TypeChecking andThen CodeGeneration
 //    allPhases.run(context.file.get)(context)
 //
-//    val name = NameAnalysis.run(ast)(context)
-//    val typeCk = TypeChecking.run(name)(context)
-//    CodeGeneration.run(typeCk)(context)
   }
 }

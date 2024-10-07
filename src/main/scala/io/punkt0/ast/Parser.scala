@@ -4,125 +4,132 @@ import io.punkt0.ast.Trees._
 import io.punkt0.lexer._
 import io.punkt0.{Context, Phase}
 
-import scala.collection.mutable.ListBuffer
+import scala.annotation.tailrec
 import scala.language.implicitConversions
 
-object Parser extends Phase[Iterator[Token], Program] {
+object Parser extends Phase[Iterator[BaseToken], Program] {
 
-  def run(tokens: Iterator[Token])(ctx: Context): Program = {
-    import io.punkt0.Position
+  def run(tokens: Iterator[BaseToken])(ctx: Context): Program = {
 
-    /** Store the current token, as read from the lexer. */
-    var currentToken: Token = Token(BAD, Position(1, 1))
+    def readToken(tokens: Iterator[BaseToken]): BaseToken = {
+      val getOrSkip = (token: BaseToken) =>
+        if (tokens.hasNext && token.kind == BAD) tokens.next() else token
 
-    def readToken(): Unit = {
-      if (tokens.hasNext) {
-        // uses nextToken from the Lexer trait
-        currentToken = tokens.next()
+      getOrSkip(tokens.next())
+    }
 
-        // skips bad tokens
-        while (currentToken.kind == BAD) {
-          currentToken = tokens.next()
-        }
+    /** ''Eats'' the throwExpected token, or terminates with an error. */
+    def eat(
+        tokens: Iterator[BaseToken],
+        expectedKind: TokenKind*
+    ): BaseToken = {
+      readToken(tokens) match {
+        case token if expectedKind.toSet.contains(token.kind) => token
+        case badToken                                         => throwExpected(badToken, expectedKind: _*)
       }
     }
 
-    /** ''Eats'' the expected token, or terminates with an error. */
-    def eat(kind: TokenKind): Unit = {
-      if (currentToken.kind == kind) {
-        readToken()
-      } else {
-        expected(kind)
-      }
-    }
+    /** Complains that what was found was not throwExpected. The method accepts arbitrarily many arguments of type TokenKind */
+    def throwExpected(current: BaseToken, expectedKind: TokenKind*): Nothing = {
+      val message =
+        s"""
+             |expected: ${expectedKind.mkString(" or ")}
+             |found: ${current.kind} at ${current.position.location}
+             |""".stripMargin
 
-    /** Complains that what was found was not expected. The method accepts arbitrarily many arguments of type TokenKind */
-    def expected(kind: TokenKind, more: TokenKind*): Nothing = {
-      println(
-        "expected: " + (kind :: more.toList)
-          .mkString(" or ") + ", found: " + currentToken
-      )
-      sys.exit(1)
+      throw new Error(message)
     }
 
     /** Parse many of something, e.g. regex (VarDecl)* corresponds to many[VarDecl](Set(VAR), varDeclaration) * */
-    def many[T](kinds: Set[TokenKind], next: () => T): List[T] = Iterator
-      .continually(
-        if (kinds.contains(currentToken.kind)) Some(next()) else None
-      )
-      .takeWhile(_.isDefined)
-      .map(_.get)
-      .toList
-    // Enables many[VarDecl](VAR, varDeclaration)
-    implicit def kindToSingletonSet(kind: TokenKind): Set[TokenKind] = Set(kind)
-
-    def parseGoal: Program = {
-      val classes: List[ClassDecl] = many(CLASS, classDeclaration)
-      val main: MainDecl = mainDecl
-      eat(EOF)
-      Program(main, classes)
+    def many[T](
+        next: () => T,
+        tokens: Iterator[BaseToken],
+        kinds: TokenKind*
+    ): List[T] = {
+      val cond = kinds.toSet.contains(readToken(tokens).kind)
+      if (cond)
+        Iterator
+          .continually(
+            next()
+          )
+          .takeWhile(_ => cond)
+          .toList
+      else List.empty
     }
 
     /** ClassDeclaration ::= class Identifier ( extends Identifier )? { ( VarDeclaration )* ( MethodDeclaration )* }
       */
-    def classDeclaration(): ClassDecl = {
-      eat(CLASS)
-      val id = identifier
-      val parent = if (currentToken.kind == EXTENDS) {
-        eat(EXTENDS); Some(identifier)
-      } else None
-      eat(LBRACE)
-      val vars = many(VAR, varDeclaration)
-      val meths = many(Set(DEF, OVERRIDE), methodDeclaration)
-      eat(RBRACE)
+    def classDeclaration(it: Iterator[BaseToken]): ClassDecl = {
+      val id = identifier(it)
+      val currentToken = readToken(it)
+      val parent = currentToken.kind match {
+        case EXTENDS => Some(identifier(it))
+        case LBRACE  => None
+        case _       => throwExpected(currentToken, EXTENDS, LBRACE)
+      }
+
+      val vars = many(() => varDeclaration(it), it, VAR)
+      val meths = many(
+        () => methodDeclaration(it: Iterator[BaseToken]),
+        it,
+        DEF,
+        OVERRIDE
+      )
       ClassDecl(id, parent, vars, meths)
     }
 
     /** object Identifier extends { ( VarDeclaration )* Expression (; Expression )* }
       */
-    def mainDecl: MainDecl = {
-      eat(OBJECT)
-      val objId = identifier
-      eat(EXTENDS)
-      val parent = identifier
-      eat(LBRACE)
-      val vars = many(VAR, varDeclaration)
-      val exprs = exprList(SEMICOLON)
-      eat(RBRACE)
+    def mainDecl(it: Iterator[BaseToken]): MainDecl = {
+      eat(it, OBJECT)
+      val objId = identifier(it)
+      eat(it, EXTENDS)
+      val parent = identifier(it)
+      eat(it, LBRACE)
+      val vars = many(() => varDeclaration(it), it, VAR)
+      val exprs = exprList(it, SEMICOLON)
+      eat(it, RBRACE)
       MainDecl(objId, parent, vars, exprs)
     }
 
     /** VarDeclaration ::= var Identifier : Type = Expression ;
       */
-    def varDeclaration(): VarDecl = {
-      eat(VAR)
-      val id = identifier
-      eat(COLON)
-      val tp = parseType()
-      eat(EQSIGN)
-      val expr = expression()
-      eat(SEMICOLON)
+    def varDeclaration(it: Iterator[BaseToken]): VarDecl = {
+      eat(it, VAR)
+      val id = identifier(it)
+      eat(it, COLON)
+      val tp = parseType(it)
+      eat(it, EQSIGN)
+      val expr = expression(it)
+      eat(it, SEMICOLON)
       VarDecl(tp, id, expr)
     }
 
-    /**  (override) ? def Identifier
-      *  ( ( Identifier : Type ( , Identifier : Type )* )? ) : Type =
-      *  { ( VarDeclaration )* Expression ( ; Expression )* }
+    /** (override) ? def Identifier
+      * ( ( Identifier : Type ( , Identifier : Type )* )? ) : Type =
+      * { ( VarDeclaration )* Expression ( ; Expression )* }
       */
-    def methodDeclaration(): MethodDecl = {
-      val overrides = currentToken.kind == OVERRIDE
-      if (overrides) readToken()
+    def methodDeclaration(it: Iterator[BaseToken]): MethodDecl = {
       // Header
-      eat(DEF); val name = identifier; eat(LPAREN)
-      val args = argList()
-      eat(RPAREN); eat(COLON)
-      val retType = parseType()
-      eat(EQSIGN); eat(LBRACE)
+      val currentToken = eat(it, OVERRIDE, DEF)
+      val overrides = currentToken.kind match {
+        case OVERRIDE => true
+        case DEF      => false
+        case _        => throwExpected(currentToken, OVERRIDE, DEF)
+      }
+      val name = identifier(it)
+      eat(it, LPAREN)
+      val args = argList(it)
+      eat(it, RPAREN)
+      eat(it, COLON)
+      val retType = parseType(it)
+      eat(it, EQSIGN)
+      eat(it, LBRACE)
+
       // Body
-      val vars = many(VAR, varDeclaration)
-      val exprs = exprList(SEMICOLON)
-      eat(RBRACE)
-      val retExpr = exprs.last
+      val vars = many(() => varDeclaration(it), it, VAR)
+      val exprs = exprList(it, SEMICOLON)
+      eat(it, RBRACE)
       MethodDecl(
         overrides,
         retType,
@@ -130,196 +137,218 @@ object Parser extends Phase[Iterator[Token], Program] {
         args,
         vars,
         exprs.dropRight(1),
-        retExpr
+        exprs.last
       )
     }
 
-    def parseType(): TypeTree = {
-      val tpe = currentToken.kind match {
-        case BOOLEAN => readToken(); BooleanType()
-        case INT     => readToken(); IntType()
-        case STRING  => readToken(); StringType()
-        case UNIT    => readToken(); UnitType()
-        case IDKIND  => identifier
-        case _       => expected(BOOLEAN, INT, STRING, UNIT, IDKIND)
-      }
-      tpe
-    }
-
-    def expression(): ExprTree = {
-      var e = orOperand()
-      while (currentToken.kind == OR) {
-        readToken()
-        e = Or(e, orOperand())
-      }
-      e
-    }
-
-    def orOperand(): ExprTree = {
-      var e = andOperand()
-      while (currentToken.kind == AND) {
-        readToken()
-        e = And(e, andOperand())
-      }
-      e
-    }
-
-    def andOperand(): ExprTree = {
-      var e = comparatorOperand()
-      while (currentToken.kind == LESSTHAN || currentToken.kind == EQUALS) {
-        val opKind = currentToken.kind
-        readToken()
-        e =
-          if (opKind == LESSTHAN) LessThan(e, comparatorOperand())
-          else Equals(e, comparatorOperand())
-      }
-      e
-    }
-
-    def comparatorOperand(): ExprTree = {
-      var e = term()
-      while (currentToken.kind == PLUS || currentToken.kind == MINUS) {
-        val opKind = currentToken.kind
-        readToken()
-        e = if (opKind == PLUS) Plus(e, term()) else Minus(e, term())
-      }
-      e
-    }
-
-    def term(): ExprTree = {
-      var e = factor()
-      while (currentToken.kind == TIMES || currentToken.kind == DIV) {
-        val opKind = currentToken.kind
-        readToken()
-        e = if (opKind == TIMES) Times(e, factor()) else Div(e, factor())
-      }
-      e
-    }
-
-    def factor(): ExprTree = {
-      val expr = innerFactor()
-      expressionSuffix(expr)
-    }
-
-    def innerFactor(): ExprTree = {
-      val tkn = currentToken
-      val tree = currentToken.kind match {
-        case INTLITKIND =>
-          readToken(); IntLit(tkn.asInstanceOf[INTLIT].value)
-        case STRLITKIND =>
-          readToken(); StringLit(tkn.asInstanceOf[STRLIT].value)
-        case TRUE   => readToken(); True()
-        case FALSE  => readToken(); False()
-        case IDKIND => assignment(identifier)
-        case THIS   => readToken(); This()
-        case NULL   => readToken(); Null()
-        case NEW =>
-          readToken(); val id = identifier; eat(LPAREN); eat(RPAREN); New(id)
-        case BANG => readToken(); Not(factor())
-        case LPAREN =>
-          readToken(); val e = expression(); eat(RPAREN); e
-        case LBRACE =>
-          readToken()
-          val exprs =
-            if (currentToken.kind == RBRACE) List.empty else exprList(SEMICOLON)
-          eat(RBRACE)
-          Block(exprs)
-        case IF =>
-          eat(IF); eat(LPAREN)
-          val expr = expression()
-          eat(RPAREN)
-          val thn = expression()
-          val els = currentToken.kind match {
-            case ELSE =>
-              eat(ELSE); Some(expression())
-            case _ => None
-          }
-          If(expr, thn, els)
-        case WHILE =>
-          eat(WHILE); eat(LPAREN)
-          val cond = expression()
-          eat(RPAREN)
-          val body = expression()
-          While(cond, body)
-        case PRINTLN =>
-          eat(PRINTLN); eat(LPAREN); val expr = expression(); eat(RPAREN)
-          Println(expr)
+    def parseType(it: Iterator[BaseToken]): TypeTree = {
+      val currentToken = readToken(it)
+      currentToken.kind match {
+        case BOOLEAN => BooleanType()
+        case INT     => IntType()
+        case STRING  => StringType()
+        case UNIT    => UnitType()
+        case IDKIND  => identifier(it)
         case _ =>
-          expected(
-            INTLITKIND,
-            STRLITKIND,
-            TRUE,
-            FALSE,
-            IDKIND,
-            THIS,
-            NULL,
-            NEW,
-            BANG,
-            LPAREN,
-            LBRACE,
-            IF,
-            WHILE,
-            PRINTLN
-          )
+          throwExpected(currentToken, BOOLEAN, INT, STRING, UNIT, IDKIND)
       }
-      tree
     }
 
-    def expressionSuffix(expr: ExprTree): ExprTree = {
-      var e = expr
-      while (currentToken.kind == DOT) {
-        readToken()
-        val id = identifier
-        eat(LPAREN)
-        val args = if (currentToken.kind == RPAREN) List() else exprList(COMMA)
-        eat(RPAREN)
-        e = MethodCall(e, id, args)
-      }
-      e
+    def expression(it: Iterator[BaseToken]): ExprTree = {
+      @tailrec
+      def runExpr(e: ExprTree): ExprTree =
+        if (readToken(it).kind == OR) {
+          runExpr(And(e, orOperand(it)))
+        } else e
+
+      runExpr(orOperand(it))
     }
 
-    def identifier: Identifier = {
-      val id = currentToken
-      eat(IDKIND)
-      Identifier(id.asInstanceOf[ID].value)
+    def orOperand(it: Iterator[BaseToken]): ExprTree = {
+      @tailrec
+      def runOr(e: ExprTree): ExprTree =
+        if (readToken(it).kind == AND) {
+          runOr(And(e, andOperand(it)))
+        } else e
+
+      runOr(andOperand(it))
     }
 
-    def assignment(id: Identifier): ExprTree = {
-      val tree = currentToken.kind match {
-        case EQSIGN =>
-          eat(EQSIGN); val expr = expression(); Assign(id, expr)
-        case _ => id
-      }
-      tree
-    }
-
-    def argList(): List[Formal] = {
-      val args: ListBuffer[Formal] = ListBuffer()
-      if (currentToken.kind == IDKIND) {
-        val id = identifier; eat(COLON); val tp = parseType()
-        args += Formal(tp, id)
-        while (currentToken.kind == COMMA) {
-          eat(COMMA)
-          val id = identifier; eat(COLON); val tp = parseType()
-          args += Formal(tp, id)
+    def andOperand(it: Iterator[BaseToken]): ExprTree = {
+      @tailrec
+      def runAnd(lhs: ExprTree): ExprTree =
+        readToken(it).kind match {
+          case LESSTHAN => runAnd(LessThan(lhs, comparatorOperand(it)))
+          case EQUALS   => runAnd(Equals(lhs, comparatorOperand(it)))
+          case _        => lhs
         }
-      }
-      args.toList
+      runAnd(comparatorOperand(it))
     }
 
-    def exprList(separator: TokenKind): List[ExprTree] = {
-      val exprs: ListBuffer[ExprTree] = ListBuffer()
-      exprs += expression()
-      while (currentToken.kind == separator) {
-        eat(separator)
-        exprs += expression()
-      }
-      exprs.toList
+    def comparatorOperand(it: Iterator[BaseToken]): ExprTree = {
+      @tailrec
+      def runComparator(lhs: ExprTree): ExprTree =
+        readToken(it).kind match {
+          case PLUS  => runComparator(Plus(lhs, term(it)))
+          case MINUS => runComparator(Minus(lhs, term(it)))
+          case _     => lhs
+        }
+      runComparator(term(it))
     }
 
-    readToken()
-    val tree = parseGoal
-//    terminateIfErrors
-    tree
+    def term(it: Iterator[BaseToken]): ExprTree = {
+      @tailrec
+      def runTerm(lhs: ExprTree): ExprTree =
+        readToken(it).kind match {
+          case TIMES => runTerm(Times(lhs, factor(it)))
+          case DIV   => runTerm(Div(lhs, factor(it)))
+          case _     => lhs
+        }
+      runTerm(factor(it))
+    }
+
+    def factor(it: Iterator[BaseToken]): ExprTree =
+      expressionSuffix(it, innerFactor(it))
+
+    def innerFactor(it: Iterator[BaseToken]): ExprTree = {
+      val currentToken = readToken(it)
+      currentToken match {
+        case ID(_, _)         => assignment(it, identifier(it))
+        case INTLIT(value, _) => IntLit(value)
+        case STRLIT(value, _) => StringLit(value)
+        case Token(kind, _) =>
+          kind match {
+            case TRUE  => True()
+            case FALSE => False()
+            case THIS  => This()
+            case NULL  => Null()
+            case NEW =>
+              val id = identifier(it)
+              eat(it, LPAREN)
+              eat(it, RPAREN)
+              New(id)
+            case BANG => Not(factor(it))
+            case LPAREN =>
+              val expr = expression(it)
+              eat(it, RPAREN)
+              expr
+            case LBRACE => //TODO this clearly wont work
+              val exprs =
+                if (readToken(it).kind == RBRACE) List.empty
+                else exprList(it, SEMICOLON)
+              eat(it, RBRACE)
+              Block(exprs)
+            case IF =>
+              eat(it, LPAREN)
+              val expr = expression(it)
+              eat(it, RPAREN)
+              val thn = expression(it)
+              val els = readToken(it).kind match {
+                case ELSE =>
+                  eat(it, ELSE); Some(expression(it))
+                case _ => None
+              }
+              If(expr, thn, els)
+            case PRINTLN =>
+              eat(it, PRINTLN)
+              eat(it, LPAREN)
+              val expr = expression(it)
+              eat(it, RPAREN)
+              Println(expr)
+            case _ =>
+              throwExpected(
+                currentToken,
+                INTLITKIND,
+                STRLITKIND,
+                TRUE,
+                FALSE,
+                IDKIND,
+                THIS,
+                NULL,
+                NEW,
+                BANG,
+                LPAREN,
+                LBRACE,
+                IF,
+                WHILE,
+                PRINTLN
+              )
+          }
+      }
+    }
+
+    def expressionSuffix(
+        it: Iterator[BaseToken],
+        expr: ExprTree
+    ): ExprTree = {
+      eat(it, DOT)
+      val id = identifier(it)
+      eat(it, LPAREN)
+      val args = readToken(it).kind match {
+        case RPAREN => List.empty
+        case _      => exprList(it, COMMA)
+      }
+      eat(it, RPAREN)
+      MethodCall(expr, id, args)
+    }
+
+    def identifier(it: Iterator[BaseToken]): Identifier = {
+      readToken(it) match {
+        case ID(value, _) => Identifier(value)
+        case badToken     => throwExpected(badToken, IDKIND)
+      }
+    }
+
+    def assignment(it: Iterator[BaseToken], id: Identifier): ExprTree = {
+      readToken(it) match {
+        case Token(kind, _) if kind == EQSIGN => Assign(id, expression(it))
+        case _                                => id
+      }
+    }
+
+    def argList(it: Iterator[BaseToken]): List[Formal] = {
+      @tailrec
+      def runArgsList(list: List[Formal]): List[Formal] = {
+        if (readToken(it).kind == COMMA) {
+          val id = identifier(it)
+          eat(it, COLON)
+          val tp = parseType(it)
+          runArgsList(list :+ Formal(tp, id))
+        } else list
+      }
+
+      readToken(it).kind match {
+        case IDKIND =>
+          val id = identifier(it)
+          eat(it, COLON)
+          val tp = parseType(it)
+          Formal(tp, id) :: runArgsList(List.empty)
+        case _ => List.empty
+      }
+    }
+
+    def exprList(
+        it: Iterator[BaseToken],
+        separator: TokenKind
+    ): List[ExprTree] = {
+      @tailrec
+      def runExprList(list: List[ExprTree]): List[ExprTree] =
+        if (readToken(it).kind == separator)
+          runExprList(list :+ expression(it))
+        else list
+
+      expression(it) +: runExprList(List.empty)
+    }
+
+    if (tokens.isEmpty)
+      throw new Error("Nothing to parse - tokens is empty!")
+    else {
+      val classes: List[ClassDecl] =
+        many(() => classDeclaration(tokens), tokens, CLASS)
+      val main: MainDecl = mainDecl(tokens)
+      eat(tokens, EOF)
+      Program(main, classes)
+    }
+
   }
 }

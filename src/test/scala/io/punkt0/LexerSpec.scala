@@ -7,7 +7,6 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import java.io.File
 
 class LexerSpec extends AnyWordSpecLike {
-  import io.punkt0.lexer.BaseToken
 
   private def parse(value: String*): List[BaseToken] = {
     val lines = Iterator(value.map(_.toList).toList.flatten)

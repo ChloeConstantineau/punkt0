@@ -4,8 +4,8 @@ import io.punkt0.ast.Trees._
 
 import scala.collection.mutable.ListBuffer
 
-object Printer {
-  def apply(t: Program): String = {
+object PrettyPrinter {
+  def apply(t: Program): Unit = {
     val AST = new StringBuilder
     makeClasses(t.classes)
     makeMain(t.main)
@@ -221,7 +221,7 @@ object Printer {
       }
     }
 
-    AST.toString
+    println(AST.toString)
   }
 
   //Use this apply to print the symbols as well

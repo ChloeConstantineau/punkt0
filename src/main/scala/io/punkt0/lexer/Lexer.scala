@@ -38,15 +38,15 @@ object Lexer extends Phase[File, Iterator[BaseToken]] {
               } else
                 parseLine(tail, tokens :+ Token(BAD, cursor), x + 1)
             case '&' | '|' | '=' =>
-              val tokenKind = tail.headOption match {
+              val nextTokenKind = tail.headOption match {
                 case Some('&')        => AND
                 case Some('|')        => OR
                 case Some('=')        => EQUALS
                 case _ if head == '=' => EQSIGN
                 case _                => BAD
               }
-              val token = Token(tokenKind, cursor)
-              if (tokenKind == EQUALS || tokenKind == BAD)
+              val token = Token(nextTokenKind, cursor)
+              if (nextTokenKind == EQSIGN || nextTokenKind == BAD)
                 parseLine(tail, tokens :+ token, x + 1)
               else
                 parseLine(tail.drop(1), tokens :+ token, x + 2)
