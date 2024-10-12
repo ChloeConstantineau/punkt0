@@ -1,354 +1,385 @@
-//package io.punkt0.ast
-//
-//import io.punkt0.{Context, Phase}
-//import io.punkt0.ast.Trees._
-//import io.punkt0.lexer.Token
-//
-//import scala.collection.mutable.ListBuffer
-//
-//object Parser extends Phase[Iterator[Token], Program] {
-//
-//  def run(tokens: Iterator[Token])(ctx: Context): Program = {
-//    import io.punkt0.Reporter._
-//    import io.punkt0.lexer.{BAD, TokenKind}
-//
-//    /** Store the current token, as read from the lexer. */
-//    var currentToken: Token = new Token(BAD)
-//
-//    def readToken: Unit = {
-//      if (tokens.hasNext) {
-//        // uses nextToken from the Lexer trait
-//        currentToken = tokens.next
-//
-//        // skips bad tokens
-//        while (currentToken.kind == BAD) {
-//          currentToken = tokens.next
-//        }
-//      }
-//    }
-//
-//    /** ''Eats'' the expected token, or terminates with an error. */
-//    def eat(kind: TokenKind): Unit = {
-//      if (currentToken.kind == kind) {
-//        readToken
-//      } else {
-//        expected(kind)
-//      }
-//    }
-//
-//    /** Complains that what was found was not expected. The method accepts arbitrarily many arguments of type TokenKind */
-//    def expected(kind: TokenKind, more: TokenKind*): Nothing = {
-//      fatal(
-//        "expected: " + (kind :: more.toList)
-//          .mkString(" or ") + ", found: " + currentToken,
-//        currentToken
-//      )
-//    }
-//
-//    /** Parse many of something, e.g. regex (VarDecl)* corresponds to many[VarDecl](Set(VAR), varDeclaration) * */
-//    def many[T](kinds: Set[TokenKind], next: () => T): List[T] = Iterator
-//      .continually(
-//        if (kinds.contains(currentToken.kind)) Some(next()) else None
-//      )
-//      .takeWhile(_.isDefined)
-//      .map(_.get)
-//      .toList
-//    // Enables many[VarDecl](VAR, varDeclaration)
-//    implicit def kindToSingletonSet(kind: TokenKind): Set[TokenKind] = Set(kind)
-//
-//    def parseGoal: Program = {
-//      import io.punkt0.lexer.{CLASS, EOF}
-//      val classes: List[ClassDecl] = many(CLASS, classDeclaration)
-//      val main: MainDecl = mainDecl
-//      eat(EOF)
-//      Program(main, classes).setPos(main)
-//    }
-//
-//    /** ClassDeclaration ::= class Identifier ( extends Identifier )? { ( VarDeclaration )* ( MethodDeclaration )* }
-//      */
-//    def classDeclaration(): ClassDecl = {
-//      import io.punkt0.lexer._
-//      eat(CLASS)
-//      val id = identifier
-//      val parent = if (currentToken.kind == EXTENDS) {
-//        eat(EXTENDS); Some(identifier)
-//      } else None
-//      eat(LBRACE)
-//      val vars = many(VAR, varDeclaration)
-//      val meths = many(Set(DEF, OVERRIDE), methodDeclaration)
-//      eat(RBRACE)
-//      ClassDecl(id, parent, vars, meths).setPos(id)
-//    }
-//
-//    /** object Identifier extends { ( VarDeclaration )* Expression (; Expression )* }
-//      */
-//    def mainDecl: MainDecl = {
-//      import io.punkt0.lexer._
-//      eat(OBJECT)
-//      val objId = identifier
-//      eat(EXTENDS)
-//      val parent = identifier
-//      eat(LBRACE)
-//      val vars = many(VAR, varDeclaration)
-//      val exprs = exprList(SEMICOLON)
-//      eat(RBRACE)
-//      MainDecl(objId, parent, vars, exprs).setPos(objId)
-//    }
-//
-//    /** VarDeclaration ::= var Identifier : Type = Expression ;
-//      */
-//    def varDeclaration(): VarDecl = {
-//      import io.punkt0.lexer.{COLON, EQSIGN, SEMICOLON, VAR}
-//      eat(VAR)
-//      val id = identifier
-//      eat(COLON)
-//      val tp = parseType
-//      eat(EQSIGN)
-//      val expr = expression()
-//      eat(SEMICOLON)
-//      VarDecl(tp, id, expr).setPos(id)
-//    }
-//
-//    /**  (override) ? def Identifier
-//      *  ( ( Identifier : Type ( , Identifier : Type )* )? ) : Type =
-//      *  { ( VarDeclaration )* Expression ( ; Expression )* }
-//      */
-//    def methodDeclaration(): MethodDecl = {
-//      import io.punkt0.lexer._
-//      val overrides = currentToken.kind == OVERRIDE
-//      if (overrides) readToken
-//      val methodToken = currentToken
-//      // Header
-//      eat(DEF); val name = identifier; eat(LPAREN)
-//      val args = argList()
-//      eat(RPAREN); eat(COLON)
-//      val retType = parseType
-//      eat(EQSIGN); eat(LBRACE)
-//      // Body
-//      val vars = many(VAR, varDeclaration)
-//      val exprs = exprList(SEMICOLON)
-//      eat(RBRACE)
-//      val retExpr = exprs.last
-//      MethodDecl(
-//        overrides,
-//        retType,
-//        name,
-//        args,
-//        vars,
-//        exprs.dropRight(1),
-//        retExpr
-//      ).setPos(methodToken)
-//    }
-//
-//    def parseType(): TypeTree = {
-//      import io.punkt0.lexer._
-//      val tkn = currentToken
-//      val tpe = currentToken.kind match {
-//        case BOOLEAN => readToken; BooleanType()
-//        case INT     => readToken; IntType()
-//        case STRING  => readToken; StringType()
-//        case UNIT    => readToken; UnitType()
-//        case IDKIND  => identifier
-//        case _       => expected(BOOLEAN, INT, STRING, UNIT, IDKIND)
-//      }
-//      tpe.setPos(tkn)
-//    }
-//
-//    def expression(): ExprTree = {
-//      import io.punkt0.lexer.OR
-//      var e = orOperand
-//      while (currentToken.kind == OR) {
-//        readToken
-//        e = Or(e, orOperand).setPos(e)
-//      }
-//      e
-//    }
-//
-//    def orOperand(): ExprTree = {
-//      import io.punkt0.lexer.AND
-//      var e = andOperand
-//      while (currentToken.kind == AND) {
-//        readToken
-//        e = And(e, andOperand).setPos(e)
-//      }
-//      e
-//    }
-//
-//    def andOperand(): ExprTree = {
-//      import io.punkt0.lexer.{EQUALS, LESSTHAN}
-//      var e = comparatorOperand
-//      while (currentToken.kind == LESSTHAN || currentToken.kind == EQUALS) {
-//        val opKind = currentToken.kind
-//        readToken
-//        e = (if (opKind == LESSTHAN) LessThan(e, comparatorOperand)
-//             else Equals(e, comparatorOperand)).setPos(e)
-//      }
-//      e
-//    }
-//
-//    def comparatorOperand(): ExprTree = {
-//      import io.punkt0.lexer.{MINUS, PLUS}
-//      var e = term
-//      while (currentToken.kind == PLUS || currentToken.kind == MINUS) {
-//        val opKind = currentToken.kind
-//        readToken
-//        e = (if (opKind == PLUS) Plus(e, term) else Minus(e, term)).setPos(e)
-//      }
-//      e
-//    }
-//
-//    def term(): ExprTree = {
-//      import io.punkt0.lexer.{DIV, TIMES}
-//      var e = factor
-//      while (currentToken.kind == TIMES || currentToken.kind == DIV) {
-//        val opKind = currentToken.kind
-//        readToken
-//        e =
-//          (if (opKind == TIMES) Times(e, factor) else Div(e, factor)).setPos(e)
-//      }
-//      e
-//    }
-//
-//    def factor(): ExprTree = {
-//      val expr = innerFactor
-//      expressionSuffix(expr).setPos(expr)
-//    }
-//
-//    def innerFactor(): ExprTree = {
-//      import io.punkt0.lexer._
-//      val tkn = currentToken
-//      val tree = currentToken.kind match {
-//        case INTLITKIND =>
-//          import io.punkt0.lexer.INTLIT
-//          readToken; IntLit(tkn.asInstanceOf[INTLIT].value)
-//        case STRLITKIND =>
-//          import io.punkt0.lexer.STRLIT
-//          readToken; StringLit(tkn.asInstanceOf[STRLIT].value)
-//        case TRUE   => readToken; True()
-//        case FALSE  => readToken; False()
-//        case IDKIND => assignment(identifier)
-//        case THIS   => readToken; This()
-//        case NULL   => readToken; Null()
-//        case NEW =>
-//          import io.punkt0.lexer.{LPAREN, RPAREN}
-//          readToken; val id = identifier; eat(LPAREN); eat(RPAREN); New(id)
-//        case BANG => readToken; Not(factor)
-//        case LPAREN =>
-//          import io.punkt0.lexer.RPAREN
-//          readToken; val e = expression; eat(RPAREN); e
-//        case LBRACE =>
-//          import io.punkt0.lexer.{RBRACE, SEMICOLON}
-//          readToken;
-//          val exprs =
-//            if (currentToken.kind == RBRACE) List() else exprList(SEMICOLON)
-//          eat(RBRACE);
-//          Block(exprs)
-//        case IF =>
-//          import io.punkt0.lexer.{ELSE, RPAREN}
-//          eat(IF); eat(LPAREN)
-//          val expr = expression
-//          eat(RPAREN)
-//          val thn = expression
-//          val els = currentToken.kind match {
-//            case ELSE =>
-//              eat(ELSE); Some(expression)
-//            case _ => None
-//          }
-//          If(expr, thn, els)
-//        case WHILE =>
-//          import io.punkt0.lexer.RPAREN
-//          eat(WHILE); eat(LPAREN)
-//          val cond = expression
-//          eat(RPAREN)
-//          val body = expression
-//          While(cond, body)
-//        case PRINTLN =>
-//          import io.punkt0.lexer.RPAREN
-//          eat(PRINTLN); eat(LPAREN); val expr = expression; eat(RPAREN);
-//          Println(expr)
-//        case _ =>
-//          expected(
-//            INTLITKIND,
-//            STRLITKIND,
-//            TRUE,
-//            FALSE,
-//            IDKIND,
-//            THIS,
-//            NULL,
-//            NEW,
-//            BANG,
-//            LPAREN,
-//            LBRACE,
-//            IF,
-//            WHILE,
-//            PRINTLN
-//          )
-//      }
-//      tree.setPos(tkn)
-//    }
-//
-//    def expressionSuffix(expr: ExprTree): ExprTree = {
-//      import io.punkt0.lexer.DOT
-//      var e = expr
-//      while (currentToken.kind == DOT) {
-//        import io.punkt0.lexer.{COMMA, LPAREN, RPAREN}
-//        readToken
-//        val id = identifier;
-//        eat(LPAREN)
-//        val args = if (currentToken.kind == RPAREN) List() else exprList(COMMA)
-//        eat(RPAREN)
-//        e = MethodCall(e, id, args).setPos(id)
-//      }
-//      e
-//    }
-//
-//    def identifier: Identifier = {
-//      import io.punkt0.lexer.{ID, IDKIND}
-//      val id = currentToken
-//      eat(IDKIND)
-//      Identifier(id.asInstanceOf[ID].value).setPos(id)
-//    }
-//
-//    def assignment(id: Identifier): ExprTree = {
-//      import io.punkt0.lexer.EQSIGN
-//      val tree = currentToken.kind match {
-//        case EQSIGN =>
-//          eat(EQSIGN); val expr = expression; Assign(id, expr)
-//        case _ => id
-//      }
-//      tree.setPos(id)
-//    }
-//
-//    def argList(): List[Formal] = {
-//      import io.punkt0.lexer.IDKIND
-//      var args: ListBuffer[Formal] = ListBuffer()
-//      if (currentToken.kind == IDKIND) {
-//        import io.punkt0.lexer.{COLON, COMMA}
-//        val id = identifier; eat(COLON); val tp = parseType;
-//        args += Formal(tp, id);
-//        while (currentToken.kind == COMMA) {
-//          eat(COMMA)
-//          val id = identifier; eat(COLON); val tp = parseType;
-//          args += Formal(tp, id);
-//        }
-//      }
-//      args.toList
-//    }
-//
-//    def exprList(separator: TokenKind): List[ExprTree] = {
-//
-//      var exprs: ListBuffer[ExprTree] = ListBuffer()
-//      exprs += expression()
-//      while (currentToken.kind == separator) {
-//        eat(separator);
-//        exprs += expression
-//      }
-//      exprs.toList
-//    }
-//
-//    readToken
-//    val tree = parseGoal
-//    terminateIfErrors
-//    tree
-//  }
-//}
+package io.punkt0.ast
+
+import io.punkt0.ast.Trees._
+import io.punkt0.lexer._
+import io.punkt0.{Context, Phase}
+
+import scala.annotation.tailrec
+import scala.collection.BufferedIterator
+import scala.language.implicitConversions
+
+object Parser extends Phase[Iterator[BaseToken], Program] {
+
+  private def doParse(it: BufferedIterator[BaseToken]): Program = {
+
+    val errorMessage = (badToken: BaseToken, expected: List[TokenKind]) => s"""
+           |expected: ${expected.mkString(" or ")}
+           |found: $badToken
+           |""".stripMargin
+
+    @tailrec
+    def getOrSkip(token: BaseToken): BaseToken =
+      if (token.kind == BAD && it.hasNext) { it.next(); getOrSkip(it.head) }
+      else token
+
+    def probe(kind: TokenKind*): Either[Error, BaseToken] = {
+      getOrSkip(it.head) match {
+        case token if kind.toSet.contains(token.kind) => Right(it.next())
+        case badToken                                 => Left(new Error(errorMessage(badToken, kind.toList)))
+      }
+    }
+
+    /** ''Eats'' the expected token based on kinds, or terminates with an error. */
+    def eat(
+        expectedKind: TokenKind*
+    ): BaseToken = {
+      probe(expectedKind: _*)
+        .fold(e => throw e, t => t)
+    }
+
+    /** ''Tastes'' the possibly expected token based on kinds and  `eats` it if it was within the possibilities. */
+    def taste(possibleKind: TokenKind*): Option[BaseToken] = {
+      probe(possibleKind: _*)
+        .fold(_ => None, t => Some(t))
+    }
+
+    /** Parse many of something, e.g. regex (VarDecl)* corresponds to many[VarDecl](Set(VAR), varDeclaration) * */
+    def many[T](
+        next: () => T,
+        kinds: TokenKind*
+    ): List[T] = {
+      @tailrec
+      def run(acc: List[T]): List[T] =
+        if (kinds.toSet.contains(it.head.kind))
+          run(acc :+ next())
+        else
+          acc
+
+      run(List.empty)
+    }
+
+    /** ClassDeclaration ::= class Identifier ( extends Identifier )? { ( VarDeclaration )* ( MethodDeclaration )* }
+      */
+    def classDeclaration(): ClassDecl = {
+      eat(CLASS)
+      val id = identifier()
+      val parent = eat(EXTENDS, LBRACE) match {
+        case Token(EXTENDS, _) =>
+          val parentClass = identifier()
+          eat(LBRACE)
+          Some(parentClass)
+        case _ => None
+      }
+
+      val vars = many(varDeclaration, VAR).flatten
+      val meths = many(
+        methodDeclaration,
+        DEF,
+        OVERRIDE
+      ).flatten
+      eat(RBRACE)
+      ClassDecl(id, parent, vars, meths)
+    }
+
+    /** object Identifier extends { ( VarDeclaration )* Expression (; Expression )* }
+      */
+    def mainDecl(): MainDecl = {
+      eat(OBJECT)
+      val objId = identifier()
+      eat(EXTENDS)
+      val parent = identifier()
+      eat(LBRACE)
+      val vars = many(varDeclaration, VAR).flatten
+      val exprs = exprList(SEMICOLON)
+      eat(RBRACE)
+      MainDecl(objId, parent, vars, exprs)
+    }
+
+    /** VarDeclaration ::= var Identifier : Type = Expression ;
+      */
+    def varDeclaration(): Option[VarDecl] = {
+      taste(VAR) match {
+        case Some(_) =>
+          val id = identifier()
+          eat(COLON)
+          val tp = parseType()
+          eat(EQSIGN)
+          val expr = expression()
+          eat(SEMICOLON)
+          Some(VarDecl(tp, id, expr))
+        case None => None
+      }
+    }
+
+    /** (override) ? def Identifier
+      * ( ( Identifier : Type ( , Identifier : Type )* )? ) : Type =
+      * { ( VarDeclaration )* Expression ( ; Expression )* }
+      */
+    def methodDeclaration(): Option[MethodDecl] = {
+      taste(OVERRIDE, DEF) match {
+        case Some(Token(kind, _)) =>
+          // Header
+          val overrides = kind == OVERRIDE
+          if (overrides) eat(DEF)
+
+          val name = identifier()
+          eat(LPAREN)
+          val args = argList()
+          eat(RPAREN)
+          eat(COLON)
+          val retType = parseType()
+          eat(EQSIGN)
+          eat(LBRACE)
+
+          // Body
+          val vars = many(varDeclaration, VAR).flatten
+          val exprs = exprList(SEMICOLON)
+          eat(RBRACE)
+          Some(
+            MethodDecl(
+              overrides,
+              retType,
+              name,
+              args,
+              vars,
+              exprs.dropRight(1),
+              exprs.last
+            )
+          )
+        case _ => None
+      }
+    }
+
+    def parseType(): TypeTree = {
+      val expected = List(BOOLEAN, INT, STRING, UNIT, IDKIND)
+      eat(expected: _*) match {
+        case Token(BOOLEAN, _) => BooleanType()
+        case Token(INT, _)     => IntType()
+        case Token(STRING, _)  => StringType()
+        case Token(UNIT, _)    => UnitType()
+        case ID(value, _)      => Identifier(value)
+        case badToken          => throw new Error(errorMessage(badToken, expected))
+      }
+    }
+
+    def expression(): ExprTree = {
+      @tailrec
+      def runExpr(e: ExprTree): ExprTree =
+        taste(OR) match {
+          case Some(Token(OR, _)) => runExpr(Or(e, orOperand()))
+          case _                  => e
+        }
+
+      runExpr(orOperand())
+    }
+
+    def orOperand(): ExprTree = {
+      @tailrec
+      def runOr(e: ExprTree): ExprTree =
+        taste(AND) match {
+          case Some(Token(AND, _)) => runOr(And(e, andOperand()))
+          case _                   => e
+        }
+
+      runOr(andOperand())
+    }
+
+    def andOperand(): ExprTree = {
+      @tailrec
+      def runAnd(lhs: ExprTree): ExprTree =
+        taste(LESSTHAN, EQUALS) match {
+          case Some(Token(LESSTHAN, _)) =>
+            runAnd(LessThan(lhs, comparatorOperand()))
+          case Some(Token(EQUALS, _)) =>
+            runAnd(Equals(lhs, comparatorOperand()))
+          case _ => lhs
+        }
+      runAnd(comparatorOperand())
+    }
+
+    def comparatorOperand(): ExprTree = {
+      @tailrec
+      def runComparator(lhs: ExprTree): ExprTree =
+        taste(PLUS, MINUS) match {
+          case Some(Token(PLUS, _))  => runComparator(Plus(lhs, term()))
+          case Some(Token(MINUS, _)) => runComparator(Minus(lhs, term()))
+          case _                     => lhs
+        }
+      runComparator(term())
+    }
+
+    def term(): ExprTree = {
+      @tailrec
+      def runTerm(lhs: ExprTree): ExprTree =
+        taste(TIMES, DIV) match {
+          case Some(Token(TIMES, _)) => runTerm(Times(lhs, factor()))
+          case Some(Token(DIV, _))   => runTerm(Div(lhs, factor()))
+          case _                     => lhs
+        }
+      runTerm(factor())
+    }
+
+    def factor(): ExprTree =
+      expressionSuffix(innerFactor())
+
+    def innerFactor(): ExprTree = {
+      val expected = List(
+        IDKIND,
+        INTLITKIND,
+        STRLITKIND,
+        TRUE,
+        FALSE,
+        THIS,
+        NULL,
+        NEW,
+        BANG,
+        LPAREN,
+        LBRACE,
+        IF,
+        WHILE,
+        PRINTLN
+      )
+      eat(expected: _*) match {
+        case ID(value, _)     => assignment(Identifier(value))
+        case INTLIT(value, _) => IntLit(value)
+        case STRLIT(value, _) => StringLit(value)
+        case token =>
+          token.kind match {
+            case TRUE  => True()
+            case FALSE => False()
+            case THIS  => This()
+            case NULL  => Null()
+            case NEW =>
+              val id = identifier()
+              eat(LPAREN)
+              eat(RPAREN)
+              New(id)
+            case BANG => Not(factor())
+            case LPAREN =>
+              val expr = expression()
+              eat(RPAREN)
+              expr
+            case LBRACE =>
+              val exprs =
+                taste(RBRACE) match {
+                  case Some(Token(RBRACE, _)) => List.empty
+                  case _ =>
+                    val exprs = exprList(SEMICOLON)
+                    eat(RBRACE)
+                    exprs
+                }
+              Block(exprs)
+            case IF =>
+              eat(LPAREN)
+              val cond = expression()
+              eat(RPAREN)
+              val thn = expression()
+              val els = it.head.kind match {
+                case ELSE =>
+                  eat(ELSE)
+                  Some(expression())
+                case _ => None
+              }
+              If(cond, thn, els)
+            case PRINTLN =>
+              eat(LPAREN)
+              val expr = expression()
+              eat(RPAREN)
+              Println(expr)
+            case WHILE =>
+              eat(LPAREN)
+              val cond = expression()
+              eat(RPAREN)
+              While(cond, expression())
+            case _ => throw new Error(errorMessage(token, expected))
+          }
+      }
+    }
+
+    @tailrec
+    def expressionSuffix(
+        expr: ExprTree
+    ): ExprTree = {
+      taste(DOT) match {
+        case Some(Token(DOT, _)) =>
+          val id = identifier()
+          eat(LPAREN)
+          val args = taste(RPAREN) match {
+            case Some(Token(RPAREN, _)) => List.empty
+            case _ =>
+              val exprs = exprList(COMMA)
+              eat(RPAREN)
+              exprs
+          }
+          expressionSuffix(MethodCall(expr, id, args))
+        case _ => expr
+      }
+    }
+
+    def identifier(): Identifier = {
+      eat(IDKIND) match {
+        case ID(value, _) => Identifier(value)
+        case t            => throw new Error(s"identifier error: $t")
+      }
+    }
+
+    def assignment(
+        id: Identifier
+    ): ExprTree = {
+      taste(EQSIGN) match {
+        case Some(Token(EQSIGN, _)) => Assign(id, expression())
+        case _                      => id
+      }
+    }
+
+    def argList(): List[Formal] = {
+      @tailrec
+      def runArgsList(list: List[Formal]): List[Formal] = {
+        taste(COMMA) match {
+          case Some(Token(COMMA, _)) =>
+            val id = identifier()
+            eat(COLON)
+            val tp = parseType()
+            runArgsList(list :+ Formal(tp, id))
+          case _ => list
+        }
+      }
+
+      taste(IDKIND) match {
+        case Some(ID(value, _)) =>
+          val id = Identifier(value)
+          eat(COLON)
+          val tp = parseType()
+          Formal(tp, id) :: runArgsList(List.empty)
+        case _ => List.empty
+      }
+    }
+
+    def exprList(
+        separator: TokenKind
+    ): List[ExprTree] = {
+      @tailrec
+      def runExprList(list: List[ExprTree]): List[ExprTree] = {
+        taste(separator) match {
+          case Some(_) => runExprList(list :+ expression())
+          case None    => list
+        }
+      }
+
+      expression() +: runExprList(List.empty)
+    }
+
+    val classes: List[ClassDecl] =
+      many(classDeclaration, CLASS)
+    val main: MainDecl = mainDecl()
+    eat(EOF)
+    Program(main, classes)
+  }
+
+  def run(tokens: Iterator[BaseToken])(ctx: Context): Program = {
+    if (tokens.isEmpty)
+      throw new Error("Nothing to parse - tokens is empty!")
+    else
+      doParse(tokens.buffered)
+  }
+}
