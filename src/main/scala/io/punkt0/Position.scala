@@ -1,5 +1,6 @@
 package io.punkt0
 
-case class Position(line: Int, column: Int) {
+trait PositionT
+case class Position(line: Int, column: Int) extends PositionT {
   def location: String = s"($line:$column)"
 }

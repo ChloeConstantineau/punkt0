@@ -8,6 +8,8 @@ scalacOptions ++= Seq("-deprecation", "-unchecked")
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
 
+run / fork := true
+
 addCommandAlias("lint", "scalafmtSbt; scalafmtAll; scalafixAll")
 addCommandAlias(
   "lintCheck",

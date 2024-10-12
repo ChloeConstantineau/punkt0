@@ -18,7 +18,6 @@ written your parser and printer, it is not sufficient, and you are as
 usual responsible for checking the details of your implementation
 before you submit it.
 
-
 ## Parser
 
 * Write a recursive-descent Parser for [punkt0](lab2.html) by manually
@@ -37,8 +36,8 @@ before you submit it.
 * You need to properly encode the operator precedence as in Java and
   Scala. From highest priority to lowest: **!**, then **'*'** and
   **/**, then **+** and **-**, then **<** and **==**, then **&&**,
-  then **||**.  Except for the unary operators, all operators are
-  left-associative.  There is no precedence between operators of the
+  then **||**. Except for the unary operators, all operators are
+  left-associative. There is no precedence between operators of the
   same level. For instance: `4 / 3 * 6` reads as `((4 / 3) * 6)` and
   `6 * 4 / 3` as `((6 * 4) / 3`.
 
@@ -85,9 +84,3 @@ should yield an identical result, though.
 
 * Implement a new command-line option `--print` for pretty-printing
   the AST of a program.
-
-
-## Stubs
-
-We provide <a href="parser-stubs-v2.zip">code stubs</a> for your parser
-component. The ZIP archive also contains all files of the lexer stubs.
