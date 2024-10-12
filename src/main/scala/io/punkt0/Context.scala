@@ -12,5 +12,5 @@ case class Context(
     doAST: Boolean = false,
     doPrintPrettyTree: Boolean = false,
     doSymbolIds: Boolean = false,
-    doTypePrint: Boolean = false
+    doTypePrint: Boolean = false,
 )
