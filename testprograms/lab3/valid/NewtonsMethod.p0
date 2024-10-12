@@ -15,50 +15,48 @@ class Cons extends Arr {
 } // End of Arr implementation
 
 class NM {
-	// Callable version of sqrt
-	def sqrt(n : Int) : Real = {
-		var guess : Real = null;
-		var orig: Real = null;
-		var result: Real = null;
-		
-		// first guess: 2
-		guess = new Real().init(1,4);
-		orig = new Real().init(n,4);
+    // Callable version of sqrt
+    def sqrt(n : Int) : Real = {
+        var guess : Real = null;
+        var orig: Real = null;
+        var result: Real = null;
 
-		result = this.sqrtIter(guess, 0, 5, orig);
-		result
-	}
+        // first guess: 2
+        guess = new Real().init(1,4);
+        orig = new Real().init(n,4);
 
-	// Function with more parameters
-	def sqrtIter(guess : Real, i : Int, maxIter : Int, original : Real) : Real = {
-		var average : Real = null;
-		var quotient: Real = null;
-		var result: Real = null;
+        result = this.sqrtIter(guess, 0, 5, orig);
+        result
+    }
 
-		// Check if we have iterated enough
-		if (i == maxIter) {
-			result = guess
-		}
+    // Function with more parameters
+    def sqrtIter(guess : Real, i : Int, maxIter : Int, original : Real) : Real = {
+        var average : Real = null;
+        var quotient: Real = null;
+        var result: Real = null;
 
-		else {
+        // Check if we have iterated enough
+        if (i == maxIter) {
+            result = guess
+        }
 
-			// Keep posted about our progress
-			println("Iteration " + i + ": Guess is " + guess.str());
+        else {
 
-			// If not, iterate some more
-			quotient = original.divide(guess);
-			average = guess.plus(quotient).divide(new Real().init(2,4));
+            // Keep posted about our progress
+            println("Iteration " + i + ": Guess is " + guess.str());
 
-			// Now recurse
-			result = this.sqrtIter(average, i+1, maxIter, original)
-		};
-		result
-	}
+            // If not, iterate some more
+            quotient = original.divide(guess);
+            average = guess.plus(quotient).divide(new Real().init(2,4));
+
+            // Now recurse
+            result = this.sqrtIter(average, i+1, maxIter, original)
+        };
+        result
+    }
 }
 
-/* 
- * Kindly borrowed from PI.slac and modified by adding a divide def
- */
+// Kindly borrowed from PI.slac and modified by adding a divide def
 
 // represents real numbers as a number plus an array containing the digits
 class Real {
@@ -93,45 +91,45 @@ class Real {
         this
     }
 
-	// Divides one real with another
-	def divide(other: Real) : Real = {
-		var i : Int = 0;
-		var int1: Int = 0;
-		var int2: Int = 0;
-		var len: Int = 0;
-		var otherDigits: Arr = null;
-		var f: Frac = null;
-		var result: Real = null;
+    // Divides one real with another
+    def divide(other: Real) : Real = {
+        var i : Int = 0;
+        var int1: Int = 0;
+        var int2: Int = 0;
+        var len: Int = 0;
+        var otherDigits: Arr = null;
+        var f: Frac = null;
+        var result: Real = null;
 
-		if (digits.size() < other.getDigits().size()) {
-			len = digits.size()
-		} else {
-			len = other.getDigits().size()
-		};
+        if (digits.size() < other.getDigits().size()) {
+            len = digits.size()
+        } else {
+            len = other.getDigits().size()
+        };
 
-		//println("Dividing " + this.str() + " with " + other.str());
+        //println("Dividing " + this.str() + " with " + other.str());
 
-		int1 = this.getIntegerPart();
-		int2 = other.getIntegerPart();
-		// Create integer versions of both numbers 
-		i = 0;	
-		otherDigits = other.getDigits();
-		while(i < len) {
-			int1 = (int1 * 10) + digits.apply(i);
-			int2 = (int2 * 10) + otherDigits.apply(i);
-			i = i + 1
-		};
+        int1 = this.getIntegerPart();
+        int2 = other.getIntegerPart();
+        // Create integer versions of both numbers
+        i = 0;
+        otherDigits = other.getDigits();
+        while(i < len) {
+            int1 = (int1 * 10) + digits.apply(i);
+            int2 = (int2 * 10) + otherDigits.apply(i);
+            i = i + 1
+        };
 
-		//println("int1: " + int1 + " and int2: " + int2);
-		// Make into a fraction
-		f = new Frac().init(int1,int2);
+        //println("int1: " + int1 + " and int2: " + int2);
+        // Make into a fraction
+        f = new Frac().init(int1,int2);
 
-		//println("Fraction gives " + f.str());
+        //println("Fraction gives " + f.str());
 
-		// Convert back to real
-		result = new Real().init(3,4).evalFrac(f);			
-		result
-	}
+        // Convert back to real
+        result = new Real().init(3,4).evalFrac(f);
+        result
+    }
 
     def evalFrac(frac : Frac) : Real = {
         var leftover : Int = 0;

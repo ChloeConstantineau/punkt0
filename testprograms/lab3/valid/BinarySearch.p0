@@ -1,17 +1,17 @@
 class Arr {
-  def ofDim(i: Int): Arr = { if (0 == i) new Empty() else new Cons().init(0, this.ofDim(i-1)) }
-  def update(index: Int, newval: Int): Unit = {{}}
-  def apply(index: Int): Int = {0}
-  def size(): Int = {0}
+    def ofDim(i: Int): Arr = { if (0 == i) new Empty() else new Cons().init(0, this.ofDim(i-1)) }
+    def update(index: Int, newval: Int): Unit = {{}}
+    def apply(index: Int): Int = {0}
+    def size(): Int = {0}
 } 
 class Empty extends Arr {}
 class Cons extends Arr {
-  var value: Int = 0;
-  var next: Arr = new Empty();
-  def init(x: Int, ne: Arr): Cons = { value = x; next = ne; this }
-  override def update(index: Int, newval: Int): Unit = { if (0 == index) value = newval else next.update(index - 1, newval) }
-  override def apply(index: Int): Int = { if (0 == index) value else next.apply(index - 1) }
-  override def size(): Int = { 1 + next.size() }
+    var value: Int = 0;
+    var next: Arr = new Empty();
+    def init(x: Int, ne: Arr): Cons = { value = x; next = ne; this }
+    override def update(index: Int, newval: Int): Unit = { if (0 == index) value = newval else next.update(index - 1, newval) }
+    override def apply(index: Int): Int = { if (0 == index) value else next.apply(index - 1) }
+    override def size(): Int = { 1 + next.size() }
 } // End of Arr implementation
 
 // This class contains an array of integers and

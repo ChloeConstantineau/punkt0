@@ -36,7 +36,7 @@ class SudokuGrid {
     }
 
     def test1() : String = {
-        /* fill the sudoku grid */
+        // fill the sudoku grid
         garbage_ = this.set(0, 0, 1);
         garbage_ = this.set(0, 5, 7);
         garbage_ = this.set(0, 7, 9);
@@ -82,7 +82,7 @@ class SudokuGrid {
         grid_.apply(line * 9 + column)
     }
 
-    /* backtracking algorithm */
+    // backtracking algorithm
     def solve() : Boolean = {
         var line : Int = 0;
         var column : Int = 0;

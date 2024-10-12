@@ -27,7 +27,7 @@ class CalendarImpl {
         result
     }
 
-    /* monday = 0, tuesday = 1, ... */
+    // monday = 0, tuesday = 1, ...
     def firstJan(year : Int) : Int = {
         var result : Int = 0;
         var pyear : Int = 0;

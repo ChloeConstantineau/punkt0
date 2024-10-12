@@ -11,10 +11,10 @@ class DrunkPirate {
     def verse(number: Int) : Int  = {
         println(this.bottles(number) + " of beer on the wall, take one down, pass it around, " + this.bottles(number - 1) + " of beer on the wall.");
         if (1 < number) {
-	  this.verse(number - 1)
-	} else {
-	  0
-	}
+            this.verse(number - 1)
+        } else {
+            0
+        }
     }
 
     def bottles(number: Int) : String = {
