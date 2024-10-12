@@ -5,6 +5,7 @@ import io.punkt0.lexer._
 
 import java.io.File
 import scala.annotation.tailrec
+import scala.sys.exit
 
 object Main {
 
@@ -53,12 +54,16 @@ object Main {
 
     //LEXER
     val tokens = Lexer.run(context.file.get)(context)
-    if (context.doTokens)
+    if (context.doTokens) {
       tokens.toList.foreach(println(_))
+      exit(0)
+    }
 
     //PARSER
     val ast = Parser.run(tokens)(context)
-    if (context.doAST)
+    if (context.doAST) {
       println(ast)
+      exit(0)
+    }
   }
 }
