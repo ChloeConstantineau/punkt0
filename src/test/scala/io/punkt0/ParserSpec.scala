@@ -13,23 +13,22 @@ class ParserSpec extends AnyWordSpecLike {
   private val directory = new File("./testprograms/lab3/valid/")
   private val readFiles: String => Array[File] = (suffix: String) =>
     directory.listFiles.filter(_.getName.endsWith(suffix))
+  private val computeAST = (file: File) =>
+    (Lexer andThen Parser).run(file)(Context(file = Some(file))).toString
 
   "Parser" should {
-    "parse correctly all valid test files" in {
-      val contentFiles = readFiles(".p0").sorted
-      val assertFiles = readFiles(".p0.ast").sorted
+    val contentFiles = readFiles(".p0").sorted
+    val assertFiles = readFiles(".p0.ast").sorted
 
-      val ASTs = contentFiles.map(file =>
-        (Lexer andThen Parser).run(file)(Context(file = Some(file))).toString
-      )
-      val asserts = assertFiles.map(f => {
-        val source = Source.fromFile(f)
-        val content = source.getLines().mkString
-        source.close()
-        content
-      })
+    contentFiles.zip(assertFiles) foreach { file =>
+      s"generate AST for ${file._1.getName}" in {
+        val AST = computeAST(file._1)
+        val sourceExpected = Source.fromFile(file._2)
+        val expected = sourceExpected.getLines().mkString
+        sourceExpected.close()
 
-      assert(ASTs.zip(asserts).forall(res => res._1 == res._2))
+        assert(AST == expected)
+      }
     }
   }
 }
