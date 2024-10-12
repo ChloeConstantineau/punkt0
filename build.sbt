@@ -41,7 +41,6 @@ lazy val additionalScalacOptions = Set(
   ScalacOptions.source3,
   ScalacOptions.verboseTypeDiffs,
   ScalacOptions.verboseImplicits,
-  ScalacOptions.warnNonUnitStatement,
   // With these two flags, we enforce optional braces around template bodies and method arguments. scalafmt `rewrite.scala3.removeOptionalBraces` isn't enough.
   // See: https://dotty.epfl.ch/docs/reference/other-new-features/indentation.html#settings-and-rewrites-1
   ScalacOptions.other("-rewrite", _ => true),
