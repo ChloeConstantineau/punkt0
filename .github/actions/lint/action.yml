@@ -1,0 +1,9 @@
+name: Lint
+description: Check format and linting
+runs:
+  using: composite
+  steps:
+    - name: Setup Environment
+      uses: ./.github/actions/setup
+    - run: sbt lintCheck
+      shell: bash
