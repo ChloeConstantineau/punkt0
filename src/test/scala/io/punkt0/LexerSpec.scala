@@ -5,8 +5,7 @@ import io.punkt0.lexer.*
 class LexerSpec extends UnitTest:
 
     private def parse(value: String*): List[BaseToken] =
-        val lines = Iterator(value.map(_.toList).toList.flatten)
-        Lexer.parseLines(lines, List.empty, 1)
+      Lexer.parseLines(Iterator(value.map(_.toList).toList.flatten))
 
     "Lexer" should:
         "tokenize an ID" in:

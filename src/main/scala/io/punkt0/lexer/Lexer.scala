@@ -16,8 +16,8 @@ object Lexer extends Phase[File, Iterator[BaseToken]]:
     @tailrec
     def parseLines(
         lines: Iterator[List[Char]],
-        accTokens: List[BaseToken],
-        y: Int,
+        accTokens: List[BaseToken] = List.empty,
+        y: Int = 1,
     ): List[BaseToken] =
 
         @tailrec
@@ -108,6 +108,6 @@ object Lexer extends Phase[File, Iterator[BaseToken]]:
         val source = Source.fromFile(f)
         val lines  = source.getLines()
 
-        val result = parseLines(lines.map(_.toList), List.empty, 1).iterator
+        val result = parseLines(lines.map(_.toList)).iterator
         source.close()
         result

@@ -10,10 +10,9 @@ import scala.io.Source
 
 class ParserSpec extends AnyWordSpecLike:
 
-    private val directory                        = new File("./testprograms/lab3/valid/")
-    private val readFiles: String => Array[File] = (suffix: String) =>
-      directory.listFiles.filter(_.getName.endsWith(suffix))
-    private val computeAST                       = (file: File) =>
+    private val directory  = new File("./testprograms/lab3/valid/")
+    private val readFiles  = (suffix: String) => directory.listFiles.filter(_.getName.endsWith(suffix))
+    private val computeAST = (file: File) =>
       (Lexer andThen Parser).run(file)(Context(file = Some(file))).toString
 
     "Parser" should:
