@@ -15,8 +15,10 @@ class LexerSpec extends UnitTest:
         "tokenize an INTLIT" in:
             parse("123456").head shouldBe INTLIT(123456, Position(1, 1))
 
-        "tokenize an STRINGLIT" in:
+        "tokenize a STRINGLIT with content" in:
             parse("\"my_string\"").head shouldBe STRLIT("my_string", Position(1, 1))
+
+        "tokenize an empty STRINGLIT" in:
             parse("\"\"").head shouldBe STRLIT("", Position(1, 1))
 
         "tokenize keyword CLASS" in:
@@ -136,35 +138,45 @@ class LexerSpec extends UnitTest:
         "be case sensitive in keywords" in:
             val res = parse("unit Unit")
 
-            res.head shouldBe ID("unit", Position(1, 1))
-            res(1) shouldBe Token(UNIT, Position(1, 6))
+            assert(
+              res.head == ID("unit", Position(1, 1)) &&
+                res(1) == Token(UNIT, Position(1, 6)),
+            )
 
         "support case sensitivity, numbers and underscores in identifiers" in:
             val res = parse("my_id my_ID myiD_9")
 
-            res.head shouldBe ID("my_id", Position(1, 1))
-            res(1) shouldBe ID("my_ID", Position(1, 7))
-            res(2) shouldBe ID("myiD_9", Position(1, 13))
+            assert(
+              res.head == ID("my_id", Position(1, 1)) &&
+                res(1) == ID("my_ID", Position(1, 7)) &&
+                res(2) == ID("myiD_9", Position(1, 13)),
+            )
 
         "ignore comments" in:
             val res = parse("my_id // my comment")
 
-            res.head shouldBe ID("my_id", Position(1, 1))
-            res(1) shouldBe Token(EOF, Position(1, 20))
+            assert(
+              res.head == ID("my_id", Position(1, 1)) &&
+                res.last == Token(EOF, Position(1, 20)),
+            )
 
         "reject integers with trailing zeros" in:
             val res = parse("00 01 0")
 
-            res.head shouldBe Token(BAD, Position(1, 1))
-            res(1) shouldBe Token(BAD, Position(1, 4))
-            res(2) shouldBe INTLIT(0, Position(1, 7))
+            assert(
+              res.head == Token(BAD, Position(1, 1)) &&
+                res(1) == Token(BAD, Position(1, 4)) &&
+                res(2) == INTLIT(0, Position(1, 7)),
+            )
 
         "recognize BAD tokens" in:
             val res = parse("# $ % ~ ` @")
 
-            res.head shouldBe Token(BAD, Position(1, 1))
-            res(1) shouldBe Token(BAD, Position(1, 3))
-            res(2) shouldBe Token(BAD, Position(1, 5))
-            res(3) shouldBe Token(BAD, Position(1, 7))
-            res(4) shouldBe Token(BAD, Position(1, 9))
-            res(5) shouldBe Token(BAD, Position(1, 11))
+            assert(
+              res.head == Token(BAD, Position(1, 1)) &&
+                res(1) == Token(BAD, Position(1, 3)) &&
+                res(2) == Token(BAD, Position(1, 5)) &&
+                res(3) == Token(BAD, Position(1, 7)) &&
+                res(4) == Token(BAD, Position(1, 9)) &&
+                res(5) == Token(BAD, Position(1, 11)),
+            )
