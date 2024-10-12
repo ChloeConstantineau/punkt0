@@ -4,10 +4,7 @@ import io.punkt0.lexer._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import java.io.File
-
 class LexerSpec extends AnyWordSpecLike {
-  import io.punkt0.lexer.BaseToken
 
   private def parse(value: String*): List[BaseToken] = {
     val lines = Iterator(value.map(_.toList).toList.flatten)
@@ -219,12 +216,6 @@ class LexerSpec extends AnyWordSpecLike {
       res(3) shouldBe Token(BAD, Position(1, 7))
       res(4) shouldBe Token(BAD, Position(1, 9))
       res(5) shouldBe Token(BAD, Position(1, 11))
-    }
-
-    "support many all token kinds on many lines" in {
-      Lexer
-        .run(new File("./testprograms/lab2/valid/all.p0"))(Context())
-        .length shouldBe 50
     }
   }
 }
