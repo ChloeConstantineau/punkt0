@@ -1,0 +1,20 @@
+name: PR Validation
+
+on: pull_request
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint
+        uses: ./.github/actions/lint
+
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up scala environment
+        uses: ./.github/actions/setup
+      - name: Run unit-tests
+        run: sbt test
