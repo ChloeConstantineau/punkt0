@@ -1,4 +1,4 @@
-# Lab 5: Type Checking
+# Type Checking
 
 In this lab you will implement type checking in your Punkt0
 compiler. After this step, you will have completed the front-end of

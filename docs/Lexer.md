@@ -1,4 +1,4 @@
-# Lab 2: Lexer
+# Lexer
 
 This assignment is the first real part of the course's compiler
 project. Your task is to write the lexer for your compiler. Your

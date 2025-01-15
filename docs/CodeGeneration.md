@@ -1,4 +1,4 @@
-# Labs 6: Code Generation
+# Code Generation
 
 Congratulations, your front-end is complete! You are now one step away from having written a complete compiler. This week's lab description and stubs are rather short. It's not that we don't want to help you anymore, it's just that the tasks should be straightforward (and there's a bit of reading to do on the [Cafebabe website](https://github.com/psuter/cafebabe/wiki)).
 
