@@ -5,8 +5,10 @@ import org.typelevel.scalacoptions.ScalacOptions
 // Global settings
 // *****************************************************************************
 
+Global / onChangedBuildSource := IgnoreSourceChanges
+
 ThisBuild / version             := "1.0"
-ThisBuild / scalaVersion        := "3.5.1"
+ThisBuild / scalaVersion        := "3.6.2"
 ThisBuild / scalacOptions ++= Seq("-deprecation", "-unchecked")
 ThisBuild / semanticdbEnabled   := true // For scalafix
 ThisBuild / semanticdbVersion   := scalafixSemanticdb.revision
