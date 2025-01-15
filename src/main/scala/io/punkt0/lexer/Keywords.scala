@@ -1,5 +1,7 @@
 package io.punkt0.lexer
 
+import io.punkt0.lexer.TokenKind.*
+
 object Keywords:
 
     private val keywords = Map[String, TokenKind](

@@ -1,6 +1,7 @@
 package io.punkt0.lexer
 
 import io.punkt0.{Context, Phase, Position}
+import io.punkt0.lexer.TokenKind.*
 
 import java.io.File
 import scala.annotation.tailrec
@@ -26,7 +27,7 @@ object Lexer extends Phase[File, Iterator[BaseToken]]:
             tokens: List[BaseToken],
             x: Int,
         ): List[BaseToken] =
-            val cursor = Position(line = y, column = x)
+            val cursor = Position(y, x)
             line match
                 case ::(head, tail) =>
                   head match

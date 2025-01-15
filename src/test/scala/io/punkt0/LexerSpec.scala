@@ -1,6 +1,7 @@
 package io.punkt0
 
 import io.punkt0.lexer.*
+import io.punkt0.lexer.TokenKind.*
 
 class LexerSpec extends UnitTest:
 
