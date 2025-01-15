@@ -1,4 +1,4 @@
-# Lab 4: Name Analysis
+# Name Analysis
 
 In this lab you will add name analysis to your Punkt0 compiler. This
 will considerably ease the task of type checking that you will start

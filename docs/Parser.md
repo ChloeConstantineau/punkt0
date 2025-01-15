@@ -1,4 +1,4 @@
-# Lab 3: Parser
+# Parser
 
 In this lab, you'll work on the second part of the punkt0 compiler
 project. Your goal is to manually implement a recursive-descent parser
