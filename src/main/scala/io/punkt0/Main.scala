@@ -20,11 +20,11 @@ object Main:
             println("""
                   |Usage: <punkt0c> [options] <file>"
                   |Options include:"
-                  | --help        displays this help"
-                  | -d <outdir>   generates class files in the specified directory"
-                  | --tokens       prints all the token found"
-                  | --ast          prints out the AST"
-                  | --print        pretty prints the AST"
+                  | --help         displays this help
+                  | -d <outdir>    generates class files in the specified directory
+                  | --tokens       prints all the token found. If used, the program stops at the Lexer stage.
+                  | --ast          prints out the AST
+                  | --print        pretty prints the AST
                   |""".stripMargin)
             processOptions(args, context.copy(doHelp = true))
 

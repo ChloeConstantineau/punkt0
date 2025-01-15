@@ -1,8 +1,8 @@
 package io.punkt0.ast
 
-import io.punkt0.{Context, Phase}
 import io.punkt0.ast.Trees.*
 import io.punkt0.lexer.*
+import io.punkt0.{Context, Phase}
 
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.BufferedIterator
@@ -55,7 +55,6 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
         /** ClassDeclaration ::= class Identifier ( extends Identifier )? { ( VarDeclaration )* (
           * MethodDeclaration )* }
           */
-
         def classDeclaration(): ClassDecl =
             eat(CLASS)
             val id     = identifier()
@@ -78,7 +77,6 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
 
         /** object Identifier extends { ( VarDeclaration )* Expression (; Expression )* }
           */
-
         def mainDecl(): MainDecl =
             eat(OBJECT)
             val objId  = identifier()
@@ -92,7 +90,6 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
 
         /** VarDeclaration ::= var Identifier : Type = Expression ;
           */
-
         def varDeclaration(): Option[VarDecl] =
           taste(VAR) match
               case Some(Token(VAR, _)) =>
@@ -108,10 +105,9 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
         /** (override) ? def Identifier ( ( Identifier : Type ( , Identifier : Type )* )? ) : Type = { (
           * VarDeclaration )* Expression ( ; Expression )* }
           */
-
         def methodDeclaration(): Option[MethodDecl] =
           taste(OVERRIDE, DEF) match
-              case Some(Token(kind, _)) if (kind == OVERRIDE || kind == DEF) =>
+            case Some(Token(kind, _)) if kind == OVERRIDE || kind == DEF =>
                 // Header
                 val overrides = kind == OVERRIDE
                 if overrides then eat(DEF)
@@ -140,7 +136,7 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
                     exprs.last,
                   ),
                 )
-              case _                                                         => None
+            case _ => None
 
         def parseType(): TypeTree =
             val expected = List(BOOLEAN, INT, STRING, UNIT, IDKIND)
@@ -271,7 +267,8 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
                         While(cond, expression())
                       case _       => throw new Error(errorMessage(Some(token), expected))
                 case e                      => throw new Error(errorMessage(e, expected))
-        @tailrec
+
+      @tailrec
         def expressionSuffix(
             expr: ExprTree,
         ): ExprTree =
