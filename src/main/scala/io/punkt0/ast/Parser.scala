@@ -107,7 +107,7 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
           */
         def methodDeclaration(): Option[MethodDecl] =
           taste(OVERRIDE, DEF) match
-            case Some(Token(kind, _)) if kind == OVERRIDE || kind == DEF =>
+              case Some(Token(kind, _)) if kind == OVERRIDE || kind == DEF =>
                 // Header
                 val overrides = kind == OVERRIDE
                 if overrides then eat(DEF)
@@ -136,7 +136,7 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
                     exprs.last,
                   ),
                 )
-            case _ => None
+              case _                                                       => None
 
         def parseType(): TypeTree =
             val expected = List(BOOLEAN, INT, STRING, UNIT, IDKIND)
@@ -268,7 +268,7 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
                       case _       => throw new Error(errorMessage(Some(token), expected))
                 case e                      => throw new Error(errorMessage(e, expected))
 
-      @tailrec
+        @tailrec
         def expressionSuffix(
             expr: ExprTree,
         ): ExprTree =
