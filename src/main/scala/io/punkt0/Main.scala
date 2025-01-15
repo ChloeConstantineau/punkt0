@@ -60,7 +60,7 @@ object Main:
         // PARSER
         val ast = Parser.run(tokens)(context)
 
-      if context.doAST then println(ast)
-      if context.doPrintPrettyTree then println(PrettyPrinter(ast))
+        if context.doAST then println(ast)
+        if context.doPrintPrettyTree then println(PrettyPrinter(ast))
 
-      exit(0)
+        exit(0)
