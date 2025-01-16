@@ -3,6 +3,7 @@ package io.punkt0.ast
 import io.punkt0.{Context, Phase}
 import io.punkt0.ast.Trees.*
 import io.punkt0.lexer.*
+import io.punkt0.lexer.TokenKind.*
 
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.BufferedIterator

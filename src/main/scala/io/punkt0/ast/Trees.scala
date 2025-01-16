@@ -1,11 +1,10 @@
 package io.punkt0.ast
 
-import io.punkt0.PositionT
-import io.punkt0.analyzer.Symbols.*
+import io.punkt0.analyzer.*
 
 object Trees:
 
-    trait Tree extends PositionT with Type
+    trait Tree
 
     case class Program(main: MainDecl, classes: List[ClassDecl]) extends Tree
     case class MainDecl(
