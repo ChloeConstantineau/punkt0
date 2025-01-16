@@ -1,33 +1,29 @@
 package io.punkt0.lexer
 
-import io.punkt0.Position
+import io.punkt0.{Coordinates, Positioned}
 
 enum TokenKind:
     case STRLITKIND, INTLITKIND, IDKIND, BAD, EOF, COLON, SEMICOLON, DOT, COMMA, EQSIGN, EQUALS, BANG, LPAREN,
       RPAREN, LBRACE, RBRACE, AND, OR, LESSTHAN, PLUS, MINUS, TIMES, DIV, OBJECT, CLASS, DEF, OVERRIDE, VAR,
       UNIT, STRING, EXTENDS, INT, BOOLEAN, WHILE, IF, ELSE, TRUE, FALSE, THIS, NULL, NEW, PRINTLN
 
-sealed trait BaseToken:
+sealed trait TokenT extends Positioned:
     def kind: TokenKind
 
-// identifiers
-case class ID(value: String, position: Position) extends BaseToken:
-    def kind: TokenKind           = TokenKind.IDKIND
-    override def toString: String = s"ID($value)${position.location}"
+case class ID(value: String, coordinates: Coordinates) extends TokenT:
+    override def kind: TokenKind  = TokenKind.IDKIND
+    override def toString: String = s"ID($value)${this.location}"
 
-// integer literals
-case class INTLIT(value: Int, position: Position) extends BaseToken:
-    def kind: TokenKind           = TokenKind.INTLITKIND
-    override def toString: String = s"INT($value)${position.location}"
+case class INTLIT(value: Int, coordinates: Coordinates) extends TokenT:
+    override def kind: TokenKind  = TokenKind.INTLITKIND
+    override def toString: String = s"INT($value)${this.location}"
 
-// string literals
 case class STRLIT(
     value: String,
-    position: Position,
-) extends BaseToken:
-    def kind: TokenKind           = TokenKind.STRLITKIND
-    override def toString: String = s"STR($value)${position.location}"
+    coordinates: Coordinates,
+) extends TokenT:
+    override def kind: TokenKind  = TokenKind.STRLITKIND
+    override def toString: String = s"STR($value)${this.location}"
 
-// Others
-case class Token(kind: TokenKind, position: Position) extends BaseToken:
-    override def toString: String = s"$kind${position.location}"
+case class Token(kind: TokenKind, coordinates: Coordinates) extends TokenT:
+    override def toString: String = s"$kind${this.location}"

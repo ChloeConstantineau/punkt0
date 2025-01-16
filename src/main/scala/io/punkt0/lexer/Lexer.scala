@@ -1,6 +1,6 @@
 package io.punkt0.lexer
 
-import io.punkt0.{Context, Phase, Position}
+import io.punkt0.{Context, Coordinates, Phase}
 import io.punkt0.lexer.TokenKind.*
 
 import java.io.File
@@ -8,7 +8,7 @@ import scala.annotation.tailrec
 import scala.io.Source
 import scala.util.matching.Regex
 
-object Lexer extends Phase[File, Iterator[BaseToken]]:
+object Lexer extends Phase[File, Iterator[TokenT]]:
 
     private val alphaR: Regex      = "[a-zA-Z]".r
     private val numericalR: Regex  = "[0-9]".r
@@ -17,17 +17,17 @@ object Lexer extends Phase[File, Iterator[BaseToken]]:
     @tailrec
     def parseLines(
         lines: Iterator[List[Char]],
-        accTokens: List[BaseToken] = List.empty,
+        accTokens: List[TokenT] = List.empty,
         y: Int = 1,
-    ): List[BaseToken] =
+    ): List[TokenT] =
 
         @tailrec
         def parseLine(
             line: List[Char],
-            tokens: List[BaseToken],
+            tokens: List[TokenT],
             x: Int,
-        ): List[BaseToken] =
-            val cursor = Position(y, x)
+        ): List[TokenT] =
+            val cursor = Coordinates(y, x)
             line match
                 case ::(head, tail) =>
                   head match
@@ -37,7 +37,7 @@ object Lexer extends Phase[File, Iterator[BaseToken]]:
                             val stringLit = tail.takeWhile(_ != '"')
                             parseLine(
                               tail.drop(stringLit.length + 1),
-                              tokens :+ STRLIT(stringLit.mkString, cursor),
+                              tokens :+ STRLIT(stringLit.mkString, cursor.copy(x = cursor.x - 1)),
                               x + stringLit.length + 2,
                             )
                         else parseLine(tail, tokens :+ Token(BAD, cursor), x + 1)
@@ -105,7 +105,7 @@ object Lexer extends Phase[File, Iterator[BaseToken]]:
         if lines.isEmpty then accTokens
         else parseLines(lines, parseLine(lines.next(), accTokens, 1), y + 1)
 
-    def run(f: File)(ctx: Context): Iterator[BaseToken] =
+    def run(f: File)(ctx: Context): Iterator[TokenT] =
         val source = Source.fromFile(f)
         val lines  = source.getLines()
 

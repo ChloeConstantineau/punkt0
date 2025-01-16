@@ -1,6 +1,6 @@
 package io.punkt0.ast
 
-import io.punkt0.{Context, Phase}
+import io.punkt0.{Context, Coordinates, Phase}
 import io.punkt0.ast.Trees.*
 import io.punkt0.lexer.*
 import io.punkt0.lexer.TokenKind.*
@@ -8,21 +8,22 @@ import io.punkt0.lexer.TokenKind.*
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.BufferedIterator
 
-object Parser extends Phase[Iterator[BaseToken], Program]:
+@nowarn
+object Parser extends Phase[Iterator[TokenT], Program]:
 
-    private def doParse(it: BufferedIterator[BaseToken]): Program =
+    private def doParse(it: BufferedIterator[TokenT]): Program =
 
-        val errorMessage = (badToken: Option[BaseToken], expected: List[TokenKind]) => s"""
+        val errorMessage = (badToken: Option[TokenT], expected: List[TokenKind]) => s"""
             |found: ${badToken.getOrElse("?")}
             |expected: ${expected.mkString(" or ")}
             |""".stripMargin
 
-        @tailrec @nowarn
-        def getOrSkip(token: BaseToken): BaseToken =
+        @tailrec
+        def getOrSkip(token: TokenT): TokenT =
           if token.kind == BAD && it.hasNext then { it.next(); getOrSkip(it.head) }
           else token
 
-        def probe(kind: TokenKind*): Either[Error, BaseToken] =
+        def probe(kind: TokenKind*): Either[Error, TokenT] =
           getOrSkip(it.head) match
               case token if kind.toSet.contains(token.kind) => Right(it.next())
               case badToken                                 => Left(new Error(errorMessage(Some(badToken), kind.toList)))
@@ -30,13 +31,13 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
         /** ''Eats'' the expected token based on kinds, or terminates with an error. */
         def eat(
             expectedKind: TokenKind*,
-        ): Unit =
-          probe(expectedKind*).fold(e => throw e, _ => ())
+        ): Coordinates =
+          probe(expectedKind*).fold(e => throw e, t => t.coordinates)
 
         /** ''Tastes'' the possibly expected token based on kinds, `eats` it if it was within the
           * possibilities, and returns it.
           */
-        def taste(possibleKind: TokenKind*): Option[BaseToken] =
+        def taste(possibleKind: TokenKind*): Option[TokenT] =
           probe(possibleKind*).fold(_ => None, t => Some(t))
 
         /** Parse many of something, e.g. regex (VarDecl)* corresponds to many[VarDecl](Set(VAR),
@@ -57,7 +58,7 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
           * MethodDeclaration )* }
           */
         def classDeclaration(): ClassDecl =
-            eat(CLASS)
+            val xy     = eat(CLASS)
             val id     = identifier()
             val parent = taste(EXTENDS, LBRACE) match
                 case Some(Token(EXTENDS, _)) =>
@@ -74,12 +75,12 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
               OVERRIDE,
             ).flatten
             eat(RBRACE)
-            ClassDecl(id, parent, vars, meths)
+            ClassDecl(id, parent, vars, meths, xy)
 
         /** object Identifier extends { ( VarDeclaration )* Expression (; Expression )* }
           */
         def mainDecl(): MainDecl =
-            eat(OBJECT)
+            val xy     = eat(OBJECT)
             val objId  = identifier()
             eat(EXTENDS)
             val parent = identifier()
@@ -87,28 +88,28 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
             val vars   = many(varDeclaration, VAR).flatten
             val exprs  = exprList(SEMICOLON)
             eat(RBRACE)
-            MainDecl(objId, parent, vars, exprs)
+            MainDecl(objId, parent, vars, exprs, xy)
 
         /** VarDeclaration ::= var Identifier : Type = Expression ;
           */
         def varDeclaration(): Option[VarDecl] =
           taste(VAR) match
-              case Some(Token(VAR, _)) =>
+              case Some(Token(VAR, xy)) =>
                 val id   = identifier()
                 eat(COLON)
                 val tp   = parseType()
                 eat(EQSIGN)
                 val expr = expression()
                 eat(SEMICOLON)
-                Some(VarDecl(tp, id, expr))
-              case _                   => None
+                Some(VarDecl(tp, id, expr, xy))
+              case _                    => None
 
         /** (override) ? def Identifier ( ( Identifier : Type ( , Identifier : Type )* )? ) : Type = { (
           * VarDeclaration )* Expression ( ; Expression )* }
           */
         def methodDeclaration(): Option[MethodDecl] =
           taste(OVERRIDE, DEF) match
-              case Some(Token(kind, _)) if kind == OVERRIDE || kind == DEF =>
+              case Some(Token(kind, xy)) if kind == OVERRIDE || kind == DEF =>
                 // Header
                 val overrides = kind == OVERRIDE
                 if overrides then eat(DEF)
@@ -135,26 +136,27 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
                     vars,
                     exprs.dropRight(1),
                     exprs.last,
+                    xy,
                   ),
                 )
-              case _                                                       => None
+              case _                                                        => None
 
         def parseType(): TypeTree =
             val expected = List(BOOLEAN, INT, STRING, UNIT, IDKIND)
             taste(expected*) match
-                case Some(Token(BOOLEAN, _)) => BooleanType()
-                case Some(Token(INT, _))     => IntType()
-                case Some(Token(STRING, _))  => StringType()
-                case Some(Token(UNIT, _))    => UnitType()
-                case Some(ID(value, _))      => Identifier(value)
-                case badToken                => throw new Error(errorMessage(badToken, expected))
+                case Some(Token(BOOLEAN, xy)) => BooleanType(xy)
+                case Some(Token(INT, xy))     => IntType(xy)
+                case Some(Token(STRING, xy))  => StringType(xy)
+                case Some(Token(UNIT, xy))    => UnitType(xy)
+                case Some(ID(value, xy))      => Identifier(value, xy)
+                case badToken                 => throw new Error(errorMessage(badToken, expected))
 
         def expression(): ExprTree =
             @tailrec
             def runExpr(e: ExprTree): ExprTree =
               taste(OR) match
-                  case Some(Token(OR, _)) => runExpr(Or(e, orOperand()))
-                  case _                  => e
+                  case Some(Token(OR, xy)) => runExpr(Or(e, orOperand(), xy))
+                  case _                   => e
 
             runExpr(orOperand())
 
@@ -162,8 +164,8 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
             @tailrec
             def runOr(e: ExprTree): ExprTree =
               taste(AND) match
-                  case Some(Token(AND, _)) => runOr(And(e, andOperand()))
-                  case _                   => e
+                  case Some(Token(AND, xy)) => runOr(And(e, andOperand(), xy))
+                  case _                    => e
 
             runOr(andOperand())
 
@@ -171,29 +173,29 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
             @tailrec
             def runAnd(lhs: ExprTree): ExprTree =
               taste(LESSTHAN, EQUALS) match
-                  case Some(Token(LESSTHAN, _)) =>
-                    runAnd(LessThan(lhs, comparatorOperand()))
-                  case Some(Token(EQUALS, _))   =>
-                    runAnd(Equals(lhs, comparatorOperand()))
-                  case _                        => lhs
+                  case Some(Token(LESSTHAN, xy)) =>
+                    runAnd(LessThan(lhs, comparatorOperand(), xy))
+                  case Some(Token(EQUALS, xy))   =>
+                    runAnd(Equals(lhs, comparatorOperand(), xy))
+                  case _                         => lhs
             runAnd(comparatorOperand())
 
         def comparatorOperand(): ExprTree =
             @tailrec
             def runComparator(lhs: ExprTree): ExprTree =
               taste(PLUS, MINUS) match
-                  case Some(Token(PLUS, _))  => runComparator(Plus(lhs, term()))
-                  case Some(Token(MINUS, _)) => runComparator(Minus(lhs, term()))
-                  case _                     => lhs
+                  case Some(Token(PLUS, xy))  => runComparator(Plus(lhs, term(), xy))
+                  case Some(Token(MINUS, xy)) => runComparator(Minus(lhs, term(), xy))
+                  case _                      => lhs
             runComparator(term())
 
         def term(): ExprTree =
             @tailrec
             def runTerm(lhs: ExprTree): ExprTree =
               taste(TIMES, DIV) match
-                  case Some(Token(TIMES, _)) => runTerm(Times(lhs, factor()))
-                  case Some(Token(DIV, _))   => runTerm(Div(lhs, factor()))
-                  case _                     => lhs
+                  case Some(Token(TIMES, xy)) => runTerm(Times(lhs, factor(), xy))
+                  case Some(Token(DIV, xy))   => runTerm(Div(lhs, factor(), xy))
+                  case _                      => lhs
             runTerm(factor())
 
         def factor(): ExprTree =
@@ -217,21 +219,22 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
               PRINTLN,
             )
             taste(expected*) match
-                case Some(ID(value, _))     => assignment(Identifier(value))
-                case Some(INTLIT(value, _)) => IntLit(value)
-                case Some(STRLIT(value, _)) => StringLit(value)
-                case Some(token)            =>
+                case Some(ID(value, xy))     => assignment(Identifier(value, xy))
+                case Some(INTLIT(value, xy)) => IntLit(value, xy)
+                case Some(STRLIT(value, xy)) => StringLit(value, xy)
+                case Some(token)             =>
+                  val xy = token.coordinates
                   token.kind match
-                      case TRUE    => True()
-                      case FALSE   => False()
-                      case THIS    => This()
-                      case NULL    => Null()
+                      case TRUE    => True(xy)
+                      case FALSE   => False(xy)
+                      case THIS    => This(xy)
+                      case NULL    => Null(xy)
                       case NEW     =>
                         val id = identifier()
                         eat(LPAREN)
                         eat(RPAREN)
-                        New(id)
-                      case BANG    => Not(factor())
+                        New(id, xy)
+                      case BANG    => Not(factor(), xy)
                       case LPAREN  =>
                         val expr = expression()
                         eat(RPAREN)
@@ -244,7 +247,7 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
                                 val exprs = exprList(SEMICOLON)
                                 eat(RBRACE)
                                 exprs
-                        Block(exprs)
+                        Block(exprs, xy)
                       case IF      =>
                         eat(LPAREN)
                         val cond = expression()
@@ -255,26 +258,26 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
                               eat(ELSE)
                               Some(expression())
                             case _    => None
-                        If(cond, thn, els)
+                        If(cond, thn, els, xy)
                       case PRINTLN =>
                         eat(LPAREN)
                         val expr = expression()
                         eat(RPAREN)
-                        Println(expr)
+                        Println(expr, xy)
                       case WHILE   =>
                         eat(LPAREN)
                         val cond = expression()
                         eat(RPAREN)
-                        While(cond, expression())
+                        While(cond, expression(), xy)
                       case _       => throw new Error(errorMessage(Some(token), expected))
-                case e                      => throw new Error(errorMessage(e, expected))
+                case e                       => throw new Error(errorMessage(e, expected))
 
         @tailrec
         def expressionSuffix(
             expr: ExprTree,
         ): ExprTree =
           taste(DOT) match
-              case Some(Token(DOT, _)) =>
+              case Some(Token(DOT, xy)) =>
                 val id   = identifier()
                 eat(LPAREN)
                 val args = taste(RPAREN) match
@@ -283,20 +286,20 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
                       val exprs = exprList(COMMA)
                       eat(RPAREN)
                       exprs
-                expressionSuffix(MethodCall(expr, id, args))
-              case _                   => expr
+                expressionSuffix(MethodCall(expr, id, args, xy))
+              case _                    => expr
 
         def identifier(): Identifier =
           taste(IDKIND) match
-              case Some(ID(value, _)) => Identifier(value)
-              case e                  => throw new Error(errorMessage(e, List(IDKIND)))
+              case Some(ID(value, xy)) => Identifier(value, xy)
+              case e                   => throw new Error(errorMessage(e, List(IDKIND)))
 
         def assignment(
             id: Identifier,
         ): ExprTree =
           taste(EQSIGN) match
-              case Some(Token(EQSIGN, _)) => Assign(id, expression())
-              case _                      => id
+              case Some(Token(EQSIGN, xy)) => Assign(id, expression(), xy)
+              case _                       => id
 
         def argList(): List[Formal] =
             @tailrec
@@ -306,16 +309,16 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
                     val id = identifier()
                     eat(COLON)
                     val tp = parseType()
-                    runArgsList(list :+ Formal(tp, id))
+                    runArgsList(list :+ Formal(tp, id, id.coordinates))
                   case _                     => list
 
             taste(IDKIND) match
-                case Some(ID(value, _)) =>
-                  val id = Identifier(value)
+                case Some(ID(value, xy)) =>
+                  val id = Identifier(value, xy)
                   eat(COLON)
                   val tp = parseType()
-                  Formal(tp, id) :: runArgsList(List.empty)
-                case _                  => List.empty
+                  Formal(tp, id, xy) :: runArgsList(List.empty)
+                case _                   => List.empty
 
         def exprList(
             separator: TokenKind,
@@ -332,8 +335,8 @@ object Parser extends Phase[Iterator[BaseToken], Program]:
           many(classDeclaration, CLASS)
         val main: MainDecl           = mainDecl()
         eat(EOF)
-        Program(main, classes)
+        Program(main, classes, Coordinates(1, 1))
 
-    def run(tokens: Iterator[BaseToken])(ctx: Context): Program =
+    def run(tokens: Iterator[TokenT])(ctx: Context): Program =
       if tokens.isEmpty then throw new Error("Nothing to parse - tokens is empty!")
       else doParse(tokens.buffered)

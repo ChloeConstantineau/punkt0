@@ -1,6 +1,9 @@
 package io.punkt0
 
-trait PositionT
+case class Coordinates(y: Int, x: Int)
 
-case class Position(line: Int, column: Int) extends PositionT:
+trait Positioned:
+    def coordinates: Coordinates
+    def line: Int        = coordinates.y
+    def column: Int      = coordinates.x
     def location: String = s"($line:$column)"
